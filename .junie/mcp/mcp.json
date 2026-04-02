@@ -1,0 +1,11 @@
+{
+    "mcpServers": {
+        "laravel-boost": {
+            "command": "/Users/kylianwester/Library/Application Support/Herd/bin/php84",
+            "args": [
+                "/Users/kylianwester/Sites/Personal/aura.ai/artisan",
+                "boost:mcp"
+            ]
+        }
+    }
+}

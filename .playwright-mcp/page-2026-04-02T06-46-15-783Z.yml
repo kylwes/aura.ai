@@ -1,0 +1,8 @@
+- generic [ref=e2]:
+  - paragraph [ref=e3]: "404"
+  - heading "Page not found" [level=1] [ref=e4]
+  - paragraph [ref=e5]: The page you're looking for doesn't exist.
+  - link "Back to calendar" [ref=e6] [cursor=pointer]:
+    - /url: /
+    - img [ref=e7]
+    - text: Back to calendar

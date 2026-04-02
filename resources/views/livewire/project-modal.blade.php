@@ -1,0 +1,240 @@
+<div>
+    {{-- Header --}}
+    <div class="flex items-center justify-between px-8 pt-6">
+        <div class="flex items-center gap-2">
+            <div class="h-6 w-1 rounded-full" style="background-color: {{ $color }}"></div>
+            <h2 class="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+                {{ $projectId ? 'Edit Project' : 'New Project' }}
+            </h2>
+        </div>
+        <button wire:click="$dispatch('closeModal')" class="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-300">
+            <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+        </button>
+    </div>
+
+    {{-- Tabs --}}
+    <div class="flex gap-1 border-b border-neutral-200 px-8 pt-4 dark:border-neutral-800">
+        <button wire:click="$set('tab', 'details')"
+                class="rounded-t-lg px-4 py-2 text-sm font-medium transition-colors {{ $tab === 'details' ? 'border-b-2 border-accent-500 text-accent-600 dark:text-accent-400' : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200' }}">
+            Details
+        </button>
+        <button wire:click="$set('tab', 'schedule')"
+                class="rounded-t-lg px-4 py-2 text-sm font-medium transition-colors {{ $tab === 'schedule' ? 'border-b-2 border-accent-500 text-accent-600 dark:text-accent-400' : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200' }}">
+            Weekly Schedule
+            @if (count($schedules) > 0)
+                <span class="ml-1 text-[10px] text-accent-500">{{ count($schedules) }}d</span>
+            @endif
+        </button>
+    </div>
+
+    {{-- Body --}}
+    <div class="px-8 py-6" style="min-height: 340px;">
+        @if ($tab === 'details')
+            <div class="space-y-4">
+                {{-- Title --}}
+                <div>
+                    <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Title</label>
+                    <input type="text"
+                           wire:model="title"
+                           autofocus
+                           placeholder="Project name"
+                           class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm font-medium text-neutral-900 placeholder-neutral-400 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-500">
+                    @error('title')
+                        <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Color --}}
+                <div>
+                    <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Color</label>
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        @foreach (['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#6b7280'] as $preset)
+                            <button type="button"
+                                    wire:click="$set('color', '{{ $preset }}')"
+                                    class="size-7 rounded-full transition-transform hover:scale-110 focus:outline-none
+                                        {{ $color === $preset ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-neutral-900' : '' }}"
+                                    style="background-color: {{ $preset }};">
+                            </button>
+                        @endforeach
+
+                        {{-- Custom color picker --}}
+                        <label class="relative size-7 cursor-pointer rounded-full bg-gradient-to-br from-red-400 via-green-400 to-blue-500 transition-transform hover:scale-110
+                            {{ !in_array($color, ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#6b7280']) ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-neutral-900' : '' }}">
+                            <input type="color"
+                                   value="{{ $color }}"
+                                   x-on:input="$wire.set('color', $event.target.value)"
+                                   class="absolute inset-0 cursor-pointer opacity-0">
+                        </label>
+                    </div>
+                    @error('color')
+                        <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Date range --}}
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Start date <span class="normal-case tracking-normal text-neutral-300 dark:text-neutral-600">— optional</span></label>
+                        <input type="date" wire:model="startsAt"
+                               class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-300 dark:[color-scheme:dark]">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">End date <span class="normal-case tracking-normal text-neutral-300 dark:text-neutral-600">— optional</span></label>
+                        <input type="date" wire:model="endsAt"
+                               class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-300 dark:[color-scheme:dark]">
+                    </div>
+                </div>
+
+                {{-- Description --}}
+                <div>
+                    <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Description <span class="normal-case tracking-normal text-neutral-300 dark:text-neutral-600">— optional</span></label>
+                    <textarea wire:model="description"
+                              rows="3"
+                              placeholder="What is this project about?"
+                              class="mt-1 w-full resize-none rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm text-neutral-700 placeholder-neutral-400 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-300 dark:placeholder-neutral-500"></textarea>
+                </div>
+            </div>
+        @else
+            {{-- Schedule tab --}}
+            <div x-data="scheduleGrid(@js($schedules), @js($color))">
+                {{-- Day headers --}}
+                <div class="mb-2 grid grid-cols-[40px_repeat(5,1fr)] gap-1">
+                    <div></div>
+                    @foreach ([1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday'] as $dayNum => $dayLabel)
+                        <div class="text-center text-xs font-semibold text-neutral-600 dark:text-neutral-300">
+                            {{ $dayLabel }}
+                            <template x-if="hasSchedule({{ $dayNum }})">
+                                <button class="ml-1 text-[10px] font-normal opacity-60 hover:opacity-100"
+                                        @click="removeDay({{ $dayNum }})">
+                                    <svg class="inline size-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+                                </button>
+                            </template>
+                        </div>
+                    @endforeach
+                </div>
+
+                {{-- Time grid --}}
+                <div class="grid grid-cols-[40px_repeat(5,1fr)] gap-x-1 rounded-lg bg-neutral-100 p-2 dark:bg-neutral-800">
+                    @for ($hour = 7; $hour <= 19; $hour++)
+                        {{-- Hour label --}}
+                        <div class="flex h-5 items-center justify-end pr-2 text-[10px] text-neutral-400 dark:text-neutral-500">
+                            {{ str_pad($hour, 2, '0', STR_PAD_LEFT) }}:00
+                        </div>
+
+                        @foreach ([1, 2, 3, 4, 5] as $dayNum)
+                            <div data-day="{{ $dayNum }}" data-hour="{{ $hour }}"
+                                 class="h-5 cursor-pointer rounded-sm border border-transparent transition-colors"
+                                 :class="isSelected({{ $dayNum }}, {{ $hour }})
+                                    ? ''
+                                    : 'hover:bg-neutral-200/60 dark:hover:bg-neutral-700/40 border-neutral-200/30 dark:border-neutral-700/30'"
+                                 :style="isSelected({{ $dayNum }}, {{ $hour }}) ? 'background-color: ' + color + '35; border-color: ' + color + '50;' : ''"
+                                 @mousedown.prevent="startDrag({{ $dayNum }}, {{ $hour }})"
+                                 @mouseenter="onDrag({{ $dayNum }}, {{ $hour }})"
+                                 @mouseup.prevent="endDrag()">
+                                <template x-if="isSelected({{ $dayNum }}, {{ $hour }}) && isFirstHour({{ $dayNum }}, {{ $hour }})">
+                                    <span class="block truncate px-1 text-[9px] font-semibold" :style="'color: ' + color" x-text="scheduleLabel({{ $dayNum }})"></span>
+                                </template>
+                            </div>
+                        @endforeach
+                    @endfor
+                </div>
+
+                <p class="mt-2 text-[10px] text-neutral-400 dark:text-neutral-500">Drag to select working hours per day</p>
+            </div>
+        @endif
+    </div>
+
+    {{-- Footer --}}
+    <div class="flex items-center justify-between border-t border-neutral-200 px-8 py-4 dark:border-neutral-800">
+        <div>
+            @if ($projectId)
+                <button wire:click="delete"
+                        wire:confirm="Delete this project? Tasks assigned to it will be unlinked."
+                        class="px-4 py-2 text-sm font-medium text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">
+                    Delete
+                </button>
+            @endif
+        </div>
+        <div class="flex items-center gap-3">
+            <button wire:click="$dispatch('closeModal')" class="px-4 py-2 text-sm font-medium text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200">
+                Cancel
+            </button>
+            <button wire:click="save" class="rounded-lg bg-accent-600 px-5 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-700">
+                {{ $projectId ? 'Save' : 'Create' }}
+            </button>
+        </div>
+    </div>
+</div>
+
+@script
+<script>
+Alpine.data('scheduleGrid', (initialSchedules, initialColor) => ({
+    selected: { ...initialSchedules },
+    color: initialColor,
+    dragging: false,
+    dragDay: null,
+    dragStartHour: null,
+    dragCurrentHour: null,
+
+    startDrag(day, hour) {
+        this.dragging = true;
+        this.dragDay = day;
+        this.dragStartHour = hour;
+        this.dragCurrentHour = hour;
+    },
+
+    onDrag(day, hour) {
+        if (!this.dragging || day !== this.dragDay) return;
+        this.dragCurrentHour = hour;
+    },
+
+    endDrag() {
+        if (!this.dragging) return;
+
+        const day = this.dragDay;
+        const startH = Math.min(this.dragStartHour, this.dragCurrentHour);
+        const endH = Math.max(this.dragStartHour, this.dragCurrentHour) + 1;
+        const start = String(startH).padStart(2, '0') + ':00';
+        const end = String(endH).padStart(2, '0') + ':00';
+
+        this.dragging = false;
+        this.selected[day] = { start, end };
+        this.$wire.updateSchedule(day, start, end);
+    },
+
+    removeDay(day) {
+        delete this.selected[day];
+        this.$wire.removeSchedule(day);
+    },
+
+    isSelected(day, hour) {
+        if (this.dragging && this.dragDay === day) {
+            const s = Math.min(this.dragStartHour, this.dragCurrentHour);
+            const e = Math.max(this.dragStartHour, this.dragCurrentHour);
+            return hour >= s && hour <= e;
+        }
+        const sched = this.selected[day];
+        if (!sched) return false;
+        const startH = parseInt(sched.start);
+        const endH = parseInt(sched.end);
+        return hour >= startH && hour < endH;
+    },
+
+    isFirstHour(day, hour) {
+        const sched = this.selected[day];
+        if (!sched) return false;
+        return hour === parseInt(sched.start);
+    },
+
+    hasSchedule(day) {
+        return !!this.selected[day];
+    },
+
+    scheduleLabel(day) {
+        const s = this.selected[day];
+        if (!s) return '';
+        return s.start.substring(0, 5) + ' – ' + s.end.substring(0, 5);
+    }
+}));
+</script>
+@endscript

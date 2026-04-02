@@ -1,0 +1,417 @@
+- generic [active] [ref=e43]:
+  - banner [ref=e44]:
+    - link "Aura" [ref=e45] [cursor=pointer]:
+      - /url: /
+      - img [ref=e46]
+      - generic [ref=e48]: Aura
+    - navigation [ref=e49]:
+      - link "Planner" [ref=e50] [cursor=pointer]:
+        - /url: https://aura.ai.test
+      - link "Tasks" [ref=e51] [cursor=pointer]:
+        - /url: https://aura.ai.test/tasks
+    - button [ref=e53]:
+      - img [ref=e54]
+  - generic [ref=e56]:
+    - complementary [ref=e57]:
+      - generic [ref=e58]:
+        - generic [ref=e59]:
+          - generic [ref=e60]: April 2026
+          - generic [ref=e61]:
+            - button [ref=e62]:
+              - img [ref=e63]
+            - button [ref=e65]:
+              - img [ref=e66]
+        - generic [ref=e68]:
+          - generic [ref=e69]: Mo
+          - generic [ref=e70]: Tu
+          - generic [ref=e71]: We
+          - generic [ref=e72]: Th
+          - generic [ref=e73]: Fr
+          - generic [ref=e74]: Sa
+          - generic [ref=e75]: Su
+          - button "30" [ref=e76]
+          - button "31" [ref=e77]
+          - button "1" [ref=e78]
+          - button "2" [ref=e79]
+          - button "3" [ref=e80]
+          - button "4" [ref=e81]
+          - button "5" [ref=e82]
+          - button "6" [ref=e83]
+          - button "7" [ref=e84]
+          - button "8" [ref=e85]
+          - button "9" [ref=e86]
+          - button "10" [ref=e87]
+          - button "11" [ref=e88]
+          - button "12" [ref=e89]
+          - button "13" [ref=e90]
+          - button "14" [ref=e91]
+          - button "15" [ref=e92]
+          - button "16" [ref=e93]
+          - button "17" [ref=e94]
+          - button "18" [ref=e95]
+          - button "19" [ref=e96]
+          - button "20" [ref=e97]
+          - button "21" [ref=e98]
+          - button "22" [ref=e99]
+          - button "23" [ref=e100]
+          - button "24" [ref=e101]
+          - button "25" [ref=e102]
+          - button "26" [ref=e103]
+          - button "27" [ref=e104]
+          - button "28" [ref=e105]
+          - button "29" [ref=e106]
+          - button "30" [ref=e107]
+          - button "1" [ref=e108]
+          - button "2" [ref=e109]
+          - button "3" [ref=e110]
+      - generic [ref=e111]:
+        - heading "Integrations" [level=3] [ref=e112]
+        - generic [ref=e113]:
+          - generic [ref=e114]:
+            - img [ref=e116]
+            - generic [ref=e118]: GitHub
+          - generic [ref=e120]:
+            - img [ref=e122]
+            - generic [ref=e124]: Gmail
+          - generic [ref=e126]:
+            - img [ref=e128]
+            - generic [ref=e132]: Jira
+          - generic [ref=e134]:
+            - img [ref=e136]
+            - generic [ref=e141]: Slack
+      - generic [ref=e143]:
+        - generic [ref=e144]:
+          - heading "Unscheduled Tasks" [level=3] [ref=e145]
+          - button "New task" [ref=e146]:
+            - img [ref=e147]
+        - generic [ref=e149]:
+          - generic [ref=e150]:
+            - text: Fix mobile nav overflow
+            - paragraph
+            - generic [ref=e151]:
+              - img [ref=e153]
+              - generic [ref=e157]: High
+              - generic [ref=e159]: 1h
+          - generic [ref=e160]:
+            - text: Update README with new setup steps
+            - paragraph
+            - generic [ref=e161]:
+              - generic [ref=e162]: Low
+              - generic [ref=e164]: 20m
+          - generic [ref=e165]:
+            - text: Write unit tests for auth
+            - paragraph
+            - generic [ref=e167]: Mid
+    - generic [ref=e169]:
+      - banner [ref=e170]:
+        - generic [ref=e172]:
+          - button "Today" [ref=e173]
+          - button [ref=e174]:
+            - img [ref=e175]
+          - button [ref=e177]:
+            - img [ref=e178]
+          - generic [ref=e180]: April 2026
+        - generic [ref=e181]:
+          - button "Day" [ref=e182]
+          - button "Week" [ref=e183]
+          - button "Month" [ref=e184]
+        - generic [ref=e185]:
+          - link "Auto-schedule" [ref=e186] [cursor=pointer]:
+            - /url: /plan-summary
+            - img [ref=e187]
+            - text: Auto-schedule
+          - button "5" [ref=e189]:
+            - img [ref=e190]
+            - generic [ref=e192]: "5"
+          - button "K" [ref=e194]
+      - main [ref=e195]:
+        - generic [ref=e197]:
+          - generic:
+            - generic:
+              - generic: 00:00
+            - generic:
+              - generic: 01:00
+            - generic:
+              - generic: 02:00
+            - generic:
+              - generic: 03:00
+            - generic:
+              - generic: 04:00
+            - generic:
+              - generic: 05:00
+            - generic:
+              - generic: 06:00
+            - generic:
+              - generic: 07:00
+            - generic:
+              - generic: 08:00
+            - generic:
+              - generic: 09:00
+            - generic:
+              - generic: 10:00
+            - generic:
+              - generic: 11:00
+            - generic:
+              - generic: 12:00
+            - generic:
+              - generic: 13:00
+            - generic:
+              - generic: 14:00
+            - generic:
+              - generic: 15:00
+            - generic:
+              - generic: 16:00
+            - generic:
+              - generic: 17:00
+            - generic:
+              - generic: 18:00
+            - generic:
+              - generic: 19:00
+            - generic:
+              - generic: 20:00
+            - generic:
+              - generic: 21:00
+            - generic:
+              - generic: 22:00
+            - generic:
+              - generic: 23:00
+          - generic [ref=e199]:
+            - generic [ref=e200]:
+              - generic [ref=e201]:
+                - paragraph [ref=e202]: Mon
+                - paragraph [ref=e203]: "2"
+              - generic [ref=e204]:
+                - paragraph [ref=e205]: Tue
+                - paragraph [ref=e206]: "3"
+              - generic [ref=e207]:
+                - paragraph [ref=e208]: Wed
+                - paragraph [ref=e209]: "4"
+              - generic [ref=e210]:
+                - paragraph [ref=e211]: Thu
+                - paragraph [ref=e212]: "5"
+              - generic [ref=e213]:
+                - paragraph [ref=e214]: Fri
+                - paragraph [ref=e215]: "6"
+              - generic [ref=e216]:
+                - paragraph [ref=e217]: Sat
+                - paragraph [ref=e218]: "7"
+              - generic [ref=e219]:
+                - paragraph [ref=e220]: Sun
+                - paragraph [ref=e221]: "8"
+              - generic [ref=e222]:
+                - paragraph [ref=e223]: Mon
+                - paragraph [ref=e224]: "9"
+              - generic [ref=e225]:
+                - paragraph [ref=e226]: Tue
+                - paragraph [ref=e227]: "10"
+              - generic [ref=e228]:
+                - paragraph [ref=e229]: Wed
+                - paragraph [ref=e230]: "11"
+              - generic [ref=e231]:
+                - paragraph [ref=e232]: Thu
+                - paragraph [ref=e233]: "12"
+              - generic [ref=e234]:
+                - paragraph [ref=e235]: Fri
+                - paragraph [ref=e236]: "13"
+              - generic [ref=e237]:
+                - paragraph [ref=e238]: Sat
+                - paragraph [ref=e239]: "14"
+              - generic [ref=e240]:
+                - paragraph [ref=e241]: Sun
+                - paragraph [ref=e242]: "15"
+              - generic [ref=e243]:
+                - paragraph [ref=e244]: Mon
+                - paragraph [ref=e245]: "16"
+              - generic [ref=e246]:
+                - paragraph [ref=e247]: Tue
+                - paragraph [ref=e248]: "17"
+              - generic [ref=e249]:
+                - paragraph [ref=e250]: Wed
+                - paragraph [ref=e251]: "18"
+              - generic [ref=e252]:
+                - paragraph [ref=e253]: Thu
+                - paragraph [ref=e254]: "19"
+              - generic [ref=e255]:
+                - paragraph [ref=e256]: Fri
+                - paragraph [ref=e257]: "20"
+              - generic [ref=e258]:
+                - paragraph [ref=e259]: Sat
+                - paragraph [ref=e260]: "21"
+              - generic [ref=e261]:
+                - paragraph [ref=e262]: Sun
+                - paragraph [ref=e263]: "22"
+              - generic [ref=e264]:
+                - paragraph [ref=e265]: Mon
+                - paragraph [ref=e266]: "23"
+              - generic [ref=e267]:
+                - paragraph [ref=e268]: Tue
+                - paragraph [ref=e269]: "24"
+              - generic [ref=e270]:
+                - paragraph [ref=e271]: Wed
+                - paragraph [ref=e272]: "25"
+              - generic [ref=e273]:
+                - paragraph [ref=e274]: Thu
+                - paragraph [ref=e275]: "26"
+              - generic [ref=e276]:
+                - paragraph [ref=e277]: Fri
+                - paragraph [ref=e278]: "27"
+              - generic [ref=e279]:
+                - paragraph [ref=e280]: Sat
+                - paragraph [ref=e281]: "28"
+              - generic [ref=e282]:
+                - paragraph [ref=e283]: Sun
+                - paragraph [ref=e284]: "29"
+              - generic [ref=e285]:
+                - paragraph [ref=e286]: Mon
+                - paragraph [ref=e287]: "30"
+              - generic [ref=e288]:
+                - paragraph [ref=e289]: Tue
+                - paragraph [ref=e290]: "31"
+              - generic [ref=e291]:
+                - paragraph [ref=e292]: Wed
+                - paragraph [ref=e293]: "1"
+              - generic [ref=e294]:
+                - paragraph [ref=e295]: Thu
+                - paragraph [ref=e296]: "2"
+              - generic [ref=e297]:
+                - paragraph [ref=e298]: Fri
+                - paragraph [ref=e299]: "3"
+              - generic [ref=e300]:
+                - paragraph [ref=e301]: Sat
+                - paragraph [ref=e302]: "4"
+              - generic [ref=e303]:
+                - paragraph [ref=e304]: Sun
+                - paragraph [ref=e305]: "5"
+              - generic [ref=e306]:
+                - paragraph [ref=e307]: Mon
+                - paragraph [ref=e308]: "6"
+              - generic [ref=e309]:
+                - paragraph [ref=e310]: Tue
+                - paragraph [ref=e311]: "7"
+              - generic [ref=e312]:
+                - paragraph [ref=e313]: Wed
+                - paragraph [ref=e314]: "8"
+              - generic [ref=e315]:
+                - paragraph [ref=e316]: Thu
+                - paragraph [ref=e317]: "9"
+              - generic [ref=e318]:
+                - paragraph [ref=e319]: Fri
+                - paragraph [ref=e320]: "10"
+              - generic [ref=e321]:
+                - paragraph [ref=e322]: Sat
+                - paragraph [ref=e323]: "11"
+              - generic [ref=e324]:
+                - paragraph [ref=e325]: Sun
+                - paragraph [ref=e326]: "12"
+              - generic [ref=e327]:
+                - paragraph [ref=e328]: Mon
+                - paragraph [ref=e329]: "13"
+              - generic [ref=e330]:
+                - paragraph [ref=e331]: Tue
+                - paragraph [ref=e332]: "14"
+              - generic [ref=e333]:
+                - paragraph [ref=e334]: Wed
+                - paragraph [ref=e335]: "15"
+              - generic [ref=e336]:
+                - paragraph [ref=e337]: Thu
+                - paragraph [ref=e338]: "16"
+              - generic [ref=e339]:
+                - paragraph [ref=e340]: Fri
+                - paragraph [ref=e341]: "17"
+              - generic [ref=e342]:
+                - paragraph [ref=e343]: Sat
+                - paragraph [ref=e344]: "18"
+              - generic [ref=e345]:
+                - paragraph [ref=e346]: Sun
+                - paragraph [ref=e347]: "19"
+              - generic [ref=e348]:
+                - paragraph [ref=e349]: Mon
+                - paragraph [ref=e350]: "20"
+              - generic [ref=e351]:
+                - paragraph [ref=e352]: Tue
+                - paragraph [ref=e353]: "21"
+              - generic [ref=e354]:
+                - paragraph [ref=e355]: Wed
+                - paragraph [ref=e356]: "22"
+              - generic [ref=e357]:
+                - paragraph [ref=e358]: Thu
+                - paragraph [ref=e359]: "23"
+              - generic [ref=e360]:
+                - paragraph [ref=e361]: Fri
+                - paragraph [ref=e362]: "24"
+              - generic [ref=e363]:
+                - paragraph [ref=e364]: Sat
+                - paragraph [ref=e365]: "25"
+              - generic [ref=e366]:
+                - paragraph [ref=e367]: Sun
+                - paragraph [ref=e368]: "26"
+              - generic [ref=e369]:
+                - paragraph [ref=e370]: Mon
+                - paragraph [ref=e371]: "27"
+              - generic [ref=e372]:
+                - paragraph [ref=e373]: Tue
+                - paragraph [ref=e374]: "28"
+              - generic [ref=e375]:
+                - paragraph [ref=e376]: Wed
+                - paragraph [ref=e377]: "29"
+              - generic [ref=e378]:
+                - paragraph [ref=e379]: Thu
+                - paragraph [ref=e380]: "30"
+              - generic [ref=e381]:
+                - paragraph [ref=e382]: Fri
+                - paragraph [ref=e383]: "1"
+              - generic [ref=e384]:
+                - paragraph [ref=e385]: Sat
+                - paragraph [ref=e386]: "2"
+              - generic [ref=e387]:
+                - paragraph [ref=e388]: Sun
+                - paragraph [ref=e389]: "3"
+            - generic [ref=e390]:
+              - generic [ref=e967]:
+                - generic [ref=e997] [cursor=pointer]:
+                  - paragraph [ref=e998]: Team Standup
+                  - paragraph [ref=e999]: 09:30 – 09:45
+                - generic [ref=e1001] [cursor=pointer]:
+                  - paragraph [ref=e1002]: Team Standup
+                  - paragraph [ref=e1003]: 09:30 – 09:45
+                - generic [ref=e1005] [cursor=pointer]:
+                  - paragraph [ref=e1006]: Team Standup
+                  - paragraph [ref=e1007]: 09:30 – 09:45
+                - generic [ref=e1009] [cursor=pointer]:
+                  - paragraph [ref=e1010]: Team Standup
+                  - paragraph [ref=e1011]: 09:30 – 09:45
+                - generic [ref=e1013] [cursor=pointer]:
+                  - paragraph [ref=e1014]: Team Standup
+                  - paragraph [ref=e1015]: 09:30 – 09:45
+              - generic [ref=e1046]:
+                - generic [ref=e1077] [cursor=pointer]:
+                  - img [ref=e1079]
+                  - paragraph [ref=e1081]: Quarterly Performance Review Design
+                  - generic [ref=e1082]:
+                    - img [ref=e1084]
+                    - generic [ref=e1088]: 2h 30m
+                    - generic [ref=e1089]: Urgent
+                - generic [ref=e1093] [cursor=pointer]:
+                  - img [ref=e1095]
+                  - paragraph [ref=e1097]: Review API integration docs
+                  - generic [ref=e1098]:
+                    - img [ref=e1100]
+                    - generic [ref=e1105]: 45m
+                    - generic [ref=e1106]: High
+              - generic [ref=e1173] [cursor=pointer]:
+                - paragraph [ref=e1174]: Design Review
+                - paragraph [ref=e1175]: 11:00 – 12:00
+              - generic [ref=e1336]:
+                - generic [ref=e1366] [cursor=pointer]:
+                  - paragraph [ref=e1367]: Sprint Planning
+                  - paragraph [ref=e1368]: 14:00 – 15:30
+                - generic [ref=e1372] [cursor=pointer]:
+                  - img [ref=e1374]
+                  - paragraph [ref=e1376]: Reply to partnership proposal
+                  - generic [ref=e1377]:
+                    - img [ref=e1379]
+                    - generic [ref=e1381]: 30m
+                    - generic [ref=e1382]: Mid
+              - generic [ref=e1449] [cursor=pointer]:
+                - paragraph [ref=e1450]: Client Demo
+                - paragraph [ref=e1451]: 15:00 – 16:00
