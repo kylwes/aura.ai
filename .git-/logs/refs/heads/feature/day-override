@@ -1,4 +1,0 @@
-0000000000000000000000000000000000000000 1522472d67a5ecd7e002cacd698146f0a2c7fab2 kylianwester <kylian@kobaltdigital.nl> 1775159952 +0200	branch: Created from HEAD
-1522472d67a5ecd7e002cacd698146f0a2c7fab2 0ed9e009bf2bf8ab5cb5616ed203d71211b8cc94 kylianwester <kylian@kobaltdigital.nl> 1775160060 +0200	commit: feat: add DayOverride model and migration
-0ed9e009bf2bf8ab5cb5616ed203d71211b8cc94 7c532a3d23a3b1aad0e6ac625c6aad794905c116 kylianwester <kylian@kobaltdigital.nl> 1775160354 +0200	commit: feat: add dayOverrides relationship and effectiveScheduleFor to User
-7c532a3d23a3b1aad0e6ac625c6aad794905c116 80c01db56e9983c11b57931858b3e39549a7eb5e kylianwester <kylian@kobaltdigital.nl> 1775160659 +0200	commit: wip
