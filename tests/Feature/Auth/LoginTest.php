@@ -27,5 +27,5 @@ it('shows error with invalid credentials', function () {
 
 it('redirects authenticated users away from login', function () {
     $user = User::factory()->create();
-    $this->actingAs($user)->get('/login')->assertRedirect('/');
+    $this->actingAs($user)->get('/login')->assertRedirect('/dashboard');
 });

@@ -42,21 +42,6 @@
                     </div>
 
                     <div class="space-y-4">
-                        <div>
-                            <label class="text-xs text-neutral-500 dark:text-neutral-400">Push scheduled tasks to</label>
-                            <div class="mt-2 flex gap-2">
-                                @php $pushTarget = $googleIntegration->configuration['push_target'] ?? 'aura_calendar'; @endphp
-                                <button wire:click="setGooglePushTarget('aura_calendar')"
-                                        class="rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {{ $pushTarget === 'aura_calendar' ? 'bg-accent-100 text-accent-700 dark:bg-accent-900 dark:text-accent-300' : 'bg-neutral-100 text-neutral-500 hover:text-neutral-700 dark:bg-neutral-800 dark:text-neutral-400' }}">
-                                    Aura Tasks calendar
-                                </button>
-                                <button wire:click="setGooglePushTarget('primary')"
-                                        class="rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {{ $pushTarget === 'primary' ? 'bg-accent-100 text-accent-700 dark:bg-accent-900 dark:text-accent-300' : 'bg-neutral-100 text-neutral-500 hover:text-neutral-700 dark:bg-neutral-800 dark:text-neutral-400' }}">
-                                    Default calendar
-                                </button>
-                            </div>
-                        </div>
-
                         <div class="flex items-center justify-between">
                             <div>
                                 @php $lastSynced = isset($googleIntegration->configuration['last_synced_at']) ? \Illuminate\Support\Carbon::parse($googleIntegration->configuration['last_synced_at'])->diffForHumans() : 'Never'; @endphp
@@ -174,6 +159,16 @@
                                 <label class="text-xs text-neutral-500 dark:text-neutral-400">End</label>
                                 <input type="time" wire:model="focusTimeEnd" class="mt-1 block rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100">
                             </div>
+                        </div>
+                        <div class="mt-3 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-medium text-neutral-700 dark:text-neutral-300">Protect focus time</p>
+                                <p class="text-[10px] text-neutral-400 dark:text-neutral-500">AI won't schedule other tasks during focus time</p>
+                            </div>
+                            <label class="relative inline-flex cursor-pointer items-center">
+                                <input type="checkbox" wire:model.live="focusTimeProtected" class="peer sr-only">
+                                <div class="h-5 w-9 rounded-full bg-neutral-200 after:absolute after:left-[2px] after:top-[2px] after:size-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-accent-600 peer-checked:after:translate-x-full dark:bg-neutral-700"></div>
+                            </label>
                         </div>
                     @endif
                 </div>

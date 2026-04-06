@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Enums\InboxItemStatus;
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
+use App\Jobs\ScheduleTasksJob;
 use App\Models\InboxItem;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -26,14 +27,21 @@ class InboxPanel extends Component
         $item = InboxItem::where('user_id', auth()->id())->findOrFail($itemId);
         auth()->user()->tasks()->create([
             'integration_id' => $item->integration_id,
+            'project_id' => $item->ai_suggested_project_id,
             'title' => str($item->preview_text)->limit(80),
             'description' => $item->preview_text,
             'source_url' => $item->source_url,
             'source_reference' => $item->channel_name,
             'priority' => $item->ai_suggested_priority ?? TaskPriority::Medium->value,
+            'estimated_duration' => $item->ai_estimated_duration,
             'status' => TaskStatus::Pending,
         ]);
         $item->update(['status' => InboxItemStatus::Accepted]);
+
+        $this->dispatch('task-created');
+        $this->dispatch('toast', type: 'success', title: 'Task created', body: str($item->preview_text)->limit(50));
+
+        ScheduleTasksJob::debounce(auth()->user());
     }
 
     public function dismiss(int $itemId): void
@@ -72,7 +80,7 @@ class InboxPanel extends Component
     {
         $query = auth()->user()->inboxItems()
             ->where('status', InboxItemStatus::Pending)
-            ->with('integration')
+            ->with(['integration', 'suggestedProject'])
             ->latest();
         if ($this->sourceFilter) {
             $query->whereHas('integration', fn ($q) => $q->where('type', $this->sourceFilter));

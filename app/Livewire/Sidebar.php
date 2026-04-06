@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Settings\UserPreferences;
 use Illuminate\Support\Carbon;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -30,6 +31,41 @@ class Sidebar extends Component
         $this->dispatch('calendar-go-to-date', date: $date);
     }
 
+    public function toggleProjectVisibility(int $projectId): void
+    {
+        $preferences = app(UserPreferences::class);
+        $hidden = $preferences->hidden_project_ids;
+
+        if (in_array($projectId, $hidden)) {
+            $hidden = array_values(array_diff($hidden, [$projectId]));
+        } else {
+            $hidden[] = $projectId;
+        }
+
+        $preferences->hidden_project_ids = $hidden;
+        $preferences->save();
+
+        $this->dispatch('project-layers-changed');
+    }
+
+    public function showAllProjects(): void
+    {
+        $preferences = app(UserPreferences::class);
+        $preferences->hidden_project_ids = [];
+        $preferences->save();
+
+        $this->dispatch('project-layers-changed');
+    }
+
+    public function hideAllProjects(): void
+    {
+        $preferences = app(UserPreferences::class);
+        $preferences->hidden_project_ids = auth()->user()->projects()->pluck('id')->all();
+        $preferences->save();
+
+        $this->dispatch('project-layers-changed');
+    }
+
     #[On('task-created')]
     #[On('task-scheduled')]
     public function refreshTasks(): void {}
@@ -37,10 +73,17 @@ class Sidebar extends Component
     public function render()
     {
         $user = auth()->user();
+        $hiddenProjectIds = app(UserPreferences::class)->hidden_project_ids;
 
         return view('livewire.sidebar', [
             'integrations' => $user->integrations()->get(),
-            'unscheduledTasks' => $user->tasks()->where('status', 'pending')->orderBy('priority')->get(),
+            'projects' => $user->projects()->orderBy('title')->get(),
+            'hiddenProjectIds' => $hiddenProjectIds,
+            'unscheduledTasks' => $user->tasks()
+                ->where('status', 'pending')
+                ->where(fn ($q) => $q->whereNull('project_id')->orWhereNotIn('project_id', $hiddenProjectIds))
+                ->orderBy('priority')
+                ->get(),
             'calendarDays' => $this->buildMiniCalendar(),
         ]);
     }

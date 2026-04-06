@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\TaskBlock;
 use App\Settings\UserPreferences;
 use Illuminate\Support\Carbon;
 use Livewire\Component;
@@ -80,9 +81,36 @@ class TopBar extends Component
             'month' => $this->currentDate->format('F Y'),
         };
 
+        $tz = auth()->user()->timezone ?? 'UTC';
+        $today = Carbon::now($tz)->startOfDay();
+        $todayUtcStart = $today->copy()->utc();
+        $todayUtcEnd = $today->copy()->endOfDay()->utc();
+
+        $todayBlocks = TaskBlock::whereHas('task', fn ($q) => $q->where('user_id', auth()->id())->where('status', 'scheduled'))
+            ->where('scheduled_start', '>=', $todayUtcStart)
+            ->where('scheduled_start', '<', $todayUtcEnd)
+            ->get();
+
+        $taskCount = $todayBlocks->pluck('task_id')->unique()->count();
+        $scheduledMinutes = $todayBlocks->sum(fn ($b) => $b->scheduled_start->diffInMinutes($b->scheduled_end));
+
+        $schedule = auth()->user()->effectiveScheduleFor($today);
+        $availableMinutes = 0;
+        if ($schedule['enabled'] && $schedule['start'] && $schedule['end']) {
+            $availableMinutes = Carbon::parse($schedule['start'])->diffInMinutes(Carbon::parse($schedule['end']));
+            if ($schedule['lunch_start'] && $schedule['lunch_end']) {
+                $availableMinutes -= Carbon::parse($schedule['lunch_start'])->diffInMinutes($schedule['lunch_end']);
+            }
+        }
+        $freeMinutes = max(0, $availableMinutes - $scheduledMinutes);
+
         return view('livewire.top-bar', [
             'inboxCount' => $this->pendingInboxCount(),
             'dateLabel' => $dateLabel,
+            'taskCount' => $taskCount,
+            'scheduledMinutes' => $scheduledMinutes,
+            'freeMinutes' => $freeMinutes,
+            'availableMinutes' => $availableMinutes,
         ]);
     }
 }

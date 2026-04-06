@@ -24,6 +24,19 @@
                     @endif
                 </button>
             @endforeach
+
+            {{-- Project filter --}}
+            @if ($projects->isNotEmpty())
+                <select wire:model.live="project"
+                        class="h-8 rounded-lg border-0 bg-neutral-100 px-2.5 pr-7 text-xs font-medium text-neutral-700 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-300">
+                    <option value="">All projects</option>
+                    @foreach ($projects as $p)
+                        <option value="{{ $p->id }}">
+                            {{ $p->title }}
+                        </option>
+                    @endforeach
+                </select>
+            @endif
         </div>
 
         <div class="flex items-center gap-3">
@@ -35,13 +48,7 @@
                        class="h-8 w-56 rounded-lg border border-neutral-200 bg-neutral-50 py-1 pl-8 pr-3 text-xs text-neutral-700 placeholder-neutral-400 focus:border-accent-300 focus:outline-none focus:ring-1 focus:ring-accent-300 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:border-accent-600 dark:focus:ring-accent-600">
             </div>
 
-            <button x-data @click="Livewire.dispatch('openModal', { component: 'project-modal' })"
-                    class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"/></svg>
-                New project
-            </button>
-
-            <button x-data @click="Livewire.dispatch('openModal', { component: 'create-task-modal' })"
+            <button x-data @click="Livewire.dispatch('openModal', { component: 'create-task-modal', arguments: { projectId: {{ $project ?: 'null' }} } })"
                     class="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-accent-700">
                 <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                 New task

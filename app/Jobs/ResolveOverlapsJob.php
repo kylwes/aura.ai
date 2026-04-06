@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\TaskStatus;
+use App\Models\ScheduleSnapshot;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -24,6 +25,8 @@ class ResolveOverlapsJob implements ShouldQueue
 
     public function handle(): void
     {
+        ScheduleSnapshot::capture($this->user, 'overlap_resolve', 'Before overlap resolution');
+
         // Find non-pinned AI-scheduled tasks that overlap with the moved block
         $overlapping = $this->user->tasks()
             ->where('status', TaskStatus::Scheduled)
@@ -38,7 +41,7 @@ class ResolveOverlapsJob implements ShouldQueue
             return;
         }
 
-        // Set overlapping tasks back to pending so the AI can reschedule them
+        // Reset overlapping tasks to pending so the proposal can re-place them
         foreach ($overlapping as $task) {
             $task->update([
                 'status' => TaskStatus::Pending,
@@ -46,10 +49,12 @@ class ResolveOverlapsJob implements ShouldQueue
                 'scheduled_end' => null,
                 'is_ai_scheduled' => false,
                 'ai_reasoning' => null,
+                'reschedule_count' => $task->reschedule_count + 1,
+                'last_rescheduled_at' => now(),
             ]);
         }
 
-        // Let the TaskScheduler agent reschedule all pending tasks
-        ScheduleTasksJob::dispatch($this->user);
+        // Generate a reschedule proposal for the user to review instead of scheduling immediately
+        GenerateRescheduleProposalJob::dispatch($this->user, 'overlap', 'Tasks displaced by moved block');
     }
 }

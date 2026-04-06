@@ -8,6 +8,7 @@ use App\Jobs\ScheduleTasksJob;
 use App\Settings\UserPreferences;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -22,7 +23,23 @@ class TaskPage extends Component
     #[Url]
     public string $search = '';
 
+    #[Url]
+    public string $project = '';
+
     public string $view = 'list';
+
+    /** @return array<string, string> */
+    public function getListeners(): array
+    {
+        return [
+            'echo-private:App.Models.User.'.auth()->id().',ScheduleCompleted' => '$refresh',
+        ];
+    }
+
+    #[On('task-created')]
+    #[On('task-scheduled')]
+    #[On('project-saved')]
+    public function refresh(): void {}
 
     public function mount(UserPreferences $preferences): void
     {
@@ -42,6 +59,8 @@ class TaskPage extends Component
     {
         $task = auth()->user()->tasks()->findOrFail($taskId);
         $task->update(['status' => TaskStatus::Completed]);
+        $task->blocks()->delete();
+        ScheduleTasksJob::debounce(auth()->user());
     }
 
     public function reopenTask(int $taskId): void
@@ -49,7 +68,7 @@ class TaskPage extends Component
         $task = auth()->user()->tasks()->findOrFail($taskId);
         $task->update(['status' => TaskStatus::Pending]);
 
-        ScheduleTasksJob::dispatch(auth()->user());
+        ScheduleTasksJob::debounce(auth()->user());
     }
 
     public function updateTaskStatus(int $taskId, string $status): void
@@ -62,6 +81,12 @@ class TaskPage extends Component
         }
 
         $task->update(['status' => $newStatus]);
+
+        if (in_array($newStatus, [TaskStatus::Completed, TaskStatus::Dismissed])) {
+            $task->blocks()->delete();
+        }
+
+        ScheduleTasksJob::debounce(auth()->user());
 
         $label = match ($newStatus) {
             TaskStatus::Completed => 'Task completed',
@@ -80,10 +105,11 @@ class TaskPage extends Component
             ->when($this->search, fn (Builder $q) => $q->where('title', 'like', "%{$this->search}%"))
             ->when($this->filter === 'pending', fn (Builder $q) => $q->whereIn('status', [TaskStatus::Pending, TaskStatus::Scheduled]))
             ->when($this->filter === 'completed', fn (Builder $q) => $q->where('status', TaskStatus::Completed))
-            ->when($this->filter === 'urgent', fn (Builder $q) => $q->whereIn('priority', [TaskPriority::Urgent, TaskPriority::High]));
+            ->when($this->filter === 'urgent', fn (Builder $q) => $q->whereIn('priority', [TaskPriority::Urgent, TaskPriority::High]))
+            ->when($this->project !== '', fn (Builder $q) => $q->where('project_id', $this->project));
 
         $tasks = (clone $baseQuery)
-            ->orderByRaw("FIELD(status, 'pending', 'scheduled', 'snoozed', 'completed', 'dismissed')")
+            ->orderByRaw("FIELD(status, 'pending', 'scheduled', 'on_hold', 'snoozed', 'completed', 'dismissed')")
             ->orderByRaw("FIELD(priority, 'urgent', 'high', 'medium', 'low')")
             ->latest()
             ->get();
@@ -91,7 +117,7 @@ class TaskPage extends Component
         $boardColumns = [];
         if ($this->view === 'board') {
             $boardTasks = (clone $baseQuery)
-                ->whereIn('status', [TaskStatus::Pending, TaskStatus::Scheduled, TaskStatus::Completed])
+                ->whereIn('status', [TaskStatus::Pending, TaskStatus::Scheduled, TaskStatus::OnHold, TaskStatus::Completed])
                 ->orderByRaw("FIELD(priority, 'urgent', 'high', 'medium', 'low')")
                 ->orderBy('deadline')
                 ->latest()
@@ -100,6 +126,7 @@ class TaskPage extends Component
             $boardColumns = [
                 ['key' => 'pending', 'label' => 'Pending', 'tasks' => $boardTasks->where('status', TaskStatus::Pending)->values()],
                 ['key' => 'scheduled', 'label' => 'Scheduled', 'tasks' => $boardTasks->where('status', TaskStatus::Scheduled)->values()],
+                ['key' => 'on_hold', 'label' => 'On Hold', 'tasks' => $boardTasks->where('status', TaskStatus::OnHold)->values()],
                 ['key' => 'completed', 'label' => 'Completed', 'tasks' => $boardTasks->where('status', TaskStatus::Completed)->values()],
             ];
         }
@@ -107,6 +134,7 @@ class TaskPage extends Component
         return view('livewire.pages.task-page', [
             'tasks' => $tasks,
             'boardColumns' => $boardColumns,
+            'projects' => auth()->user()->projects()->orderBy('title')->get(),
             'counts' => [
                 'all' => auth()->user()->tasks()->count(),
                 'pending' => auth()->user()->tasks()->whereIn('status', [TaskStatus::Pending, TaskStatus::Scheduled])->count(),

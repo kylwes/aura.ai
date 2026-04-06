@@ -96,7 +96,7 @@ class ProjectModal extends ModalComponent
         }
 
         // Reschedule — project windows affect all task scheduling
-        ScheduleTasksJob::dispatch(auth()->user());
+        ScheduleTasksJob::debounce(auth()->user());
 
         $this->dispatch('project-saved');
 

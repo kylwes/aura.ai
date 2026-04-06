@@ -26,7 +26,15 @@
                 <div class="h-5 w-9 rounded-full bg-neutral-200 after:absolute after:left-[2px] after:top-[2px] after:size-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-accent-600 peer-checked:after:translate-x-full dark:bg-neutral-700"></div>
             </label>
             <div class="mt-2">
-                <button class="text-xs font-medium text-accent-600 hover:text-accent-700 dark:text-accent-400">Configure</button>
+                @if ($type === \App\Enums\IntegrationType::Productive)
+                    <button x-data @click="Livewire.dispatch('openModal', { component: 'productive-config-modal' })"
+                            class="text-xs font-medium text-accent-600 hover:text-accent-700 dark:text-accent-400">Configure</button>
+                @elseif ($type === \App\Enums\IntegrationType::Jira)
+                    <button x-data @click="Livewire.dispatch('openModal', { component: 'jira-config-modal' })"
+                            class="text-xs font-medium text-accent-600 hover:text-accent-700 dark:text-accent-400">Configure</button>
+                @else
+                    <button class="text-xs font-medium text-accent-600 hover:text-accent-700 dark:text-accent-400">Configure</button>
+                @endif
             </div>
         @else
             @if ($type === \App\Enums\IntegrationType::GoogleCalendar)
@@ -34,6 +42,16 @@
                    class="rounded-lg border border-accent-300 px-4 py-1.5 text-xs font-medium text-accent-600 hover:bg-accent-50 dark:border-accent-700 dark:text-accent-400 dark:hover:bg-accent-950/30">
                     Connect
                 </a>
+            @elseif ($type === \App\Enums\IntegrationType::Productive)
+                <button x-data @click="Livewire.dispatch('openModal', { component: 'productive-config-modal' })"
+                        class="rounded-lg border border-accent-300 px-4 py-1.5 text-xs font-medium text-accent-600 hover:bg-accent-50 dark:border-accent-700 dark:text-accent-400 dark:hover:bg-accent-950/30">
+                    Connect
+                </button>
+            @elseif ($type === \App\Enums\IntegrationType::Jira)
+                <button x-data @click="Livewire.dispatch('openModal', { component: 'jira-config-modal' })"
+                        class="rounded-lg border border-accent-300 px-4 py-1.5 text-xs font-medium text-accent-600 hover:bg-accent-50 dark:border-accent-700 dark:text-accent-400 dark:hover:bg-accent-950/30">
+                    Connect
+                </button>
             @else
                 <button class="rounded-lg border border-accent-300 px-4 py-1.5 text-xs font-medium text-accent-600 hover:bg-accent-50 dark:border-accent-700 dark:text-accent-400 dark:hover:bg-accent-950/30">
                     Connect

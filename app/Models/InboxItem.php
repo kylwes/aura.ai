@@ -11,7 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'user_id', 'integration_id', 'channel_name', 'preview_text',
-    'source_url', 'ai_suggested_priority', 'ai_confidence', 'status', 'snoozed_until',
+    'source_url', 'ai_suggested_priority', 'ai_confidence', 'ai_estimated_duration',
+    'ai_suggested_project_id', 'status', 'snoozed_until',
 ])]
 class InboxItem extends Model
 {
@@ -35,5 +36,10 @@ class InboxItem extends Model
     public function integration(): BelongsTo
     {
         return $this->belongsTo(Integration::class);
+    }
+
+    public function suggestedProject(): BelongsTo
+    {
+        return $this->belongsTo(Project::class, 'ai_suggested_project_id');
     }
 }

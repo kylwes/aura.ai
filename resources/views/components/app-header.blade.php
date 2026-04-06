@@ -5,6 +5,10 @@
     </a>
 
     <nav class="flex items-center gap-1">
+        <a href="{{ route('dashboard') }}" wire:navigate
+           class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors {{ request()->routeIs('dashboard') ? 'bg-accent-50 text-accent-700 dark:bg-accent-900/30 dark:text-accent-400' : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800' }}">
+            Dashboard
+        </a>
         <a href="{{ route('planner') }}" wire:navigate
            class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors {{ request()->routeIs('planner') ? 'bg-accent-50 text-accent-700 dark:bg-accent-900/30 dark:text-accent-400' : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800' }}">
             Planner

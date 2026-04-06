@@ -96,15 +96,15 @@
             </div>
         @else
             {{-- Schedule tab --}}
-            <div x-data="scheduleGrid(@js($schedules), @js($color))">
+            <div wire:ignore x-data="scheduleGrid(@js($schedules), @js($color))">
                 {{-- Day headers --}}
-                <div class="mb-2 grid grid-cols-[40px_repeat(5,1fr)] gap-1">
+                <div class="mb-2 grid grid-cols-[40px_repeat(5,1fr)] gap-x-1 px-2">
                     <div></div>
-                    @foreach ([1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday'] as $dayNum => $dayLabel)
+                    @foreach ([1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri'] as $dayNum => $dayLabel)
                         <div class="text-center text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                             {{ $dayLabel }}
                             <template x-if="hasSchedule({{ $dayNum }})">
-                                <button class="ml-1 text-[10px] font-normal opacity-60 hover:opacity-100"
+                                <button class="ml-0.5 text-[10px] font-normal opacity-60 hover:opacity-100"
                                         @click="removeDay({{ $dayNum }})">
                                     <svg class="inline size-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
                                 </button>
@@ -114,29 +114,47 @@
                 </div>
 
                 {{-- Time grid --}}
-                <div class="grid grid-cols-[40px_repeat(5,1fr)] gap-x-1 rounded-lg bg-neutral-100 p-2 dark:bg-neutral-800">
+                <div class="relative grid grid-cols-[40px_repeat(5,1fr)] gap-x-1 rounded-lg bg-neutral-100 p-2 dark:bg-neutral-800" x-ref="grid">
                     @for ($hour = 7; $hour <= 19; $hour++)
                         {{-- Hour label --}}
-                        <div class="flex h-5 items-center justify-end pr-2 text-[10px] text-neutral-400 dark:text-neutral-500">
+                        <div class="flex h-6 items-center justify-end pr-2 text-[10px] text-neutral-400 dark:text-neutral-500">
                             {{ str_pad($hour, 2, '0', STR_PAD_LEFT) }}:00
                         </div>
 
                         @foreach ([1, 2, 3, 4, 5] as $dayNum)
                             <div data-day="{{ $dayNum }}" data-hour="{{ $hour }}"
-                                 class="h-5 cursor-pointer rounded-sm border border-transparent transition-colors"
-                                 :class="isSelected({{ $dayNum }}, {{ $hour }})
-                                    ? ''
-                                    : 'hover:bg-neutral-200/60 dark:hover:bg-neutral-700/40 border-neutral-200/30 dark:border-neutral-700/30'"
-                                 :style="isSelected({{ $dayNum }}, {{ $hour }}) ? 'background-color: ' + color + '35; border-color: ' + color + '50;' : ''"
+                                 class="h-6 cursor-pointer rounded-sm border border-neutral-200/30 transition-colors hover:bg-neutral-200/60 dark:border-neutral-700/30 dark:hover:bg-neutral-700/40"
                                  @mousedown.prevent="startDrag({{ $dayNum }}, {{ $hour }})"
-                                 @mouseenter="onDrag({{ $dayNum }}, {{ $hour }})"
-                                 @mouseup.prevent="endDrag()">
-                                <template x-if="isSelected({{ $dayNum }}, {{ $hour }}) && isFirstHour({{ $dayNum }}, {{ $hour }})">
-                                    <span class="block truncate px-1 text-[9px] font-semibold" :style="'color: ' + color" x-text="scheduleLabel({{ $dayNum }})"></span>
-                                </template>
+                                 @mouseenter="onDrag({{ $dayNum }}, {{ $hour }})">
                             </div>
                         @endforeach
                     @endfor
+
+                    {{-- Schedule overlays --}}
+                    @foreach ([1, 2, 3, 4, 5] as $dayNum)
+                        <template x-if="hasSchedule({{ $dayNum }}) && !isDraggingDay({{ $dayNum }})">
+                            <div class="pointer-events-none absolute z-[1] flex rounded-md"
+                                 :class="overlayHeight({{ $dayNum }}) <= 24 ? 'items-center' : 'items-start'"
+                                 :style="overlayStyle({{ $dayNum }})">
+                                <p class="truncate px-2 text-[10px] font-medium"
+                                   :class="overlayHeight({{ $dayNum }}) > 24 ? 'pt-1' : ''"
+                                   :style="'color: ' + color"
+                                   x-text="scheduleLabel({{ $dayNum }})"></p>
+                            </div>
+                        </template>
+                    @endforeach
+
+                    {{-- Drag preview overlay --}}
+                    <template x-if="dragging">
+                        <div class="pointer-events-none absolute z-[2] flex rounded-md"
+                             :class="dragPreviewHeight() <= 24 ? 'items-center' : 'items-start'"
+                             :style="dragPreviewStyle()">
+                            <p class="truncate px-2 text-[10px] font-medium"
+                               :class="dragPreviewHeight() > 24 ? 'pt-1' : ''"
+                               :style="'color: ' + color"
+                               x-text="dragLabel()"></p>
+                        </div>
+                    </template>
                 </div>
 
                 <p class="mt-2 text-[10px] text-neutral-400 dark:text-neutral-500">Drag to select working hours per day</p>
@@ -175,6 +193,18 @@ Alpine.data('scheduleGrid', (initialSchedules, initialColor) => ({
     dragDay: null,
     dragStartHour: null,
     dragCurrentHour: null,
+    _mouseupHandler: null,
+
+    init() {
+        this._mouseupHandler = () => this.endDrag();
+        document.addEventListener('mouseup', this._mouseupHandler);
+    },
+
+    destroy() {
+        if (this._mouseupHandler) {
+            document.removeEventListener('mouseup', this._mouseupHandler);
+        }
+    },
 
     startDrag(day, hour) {
         this.dragging = true;
@@ -198,43 +228,98 @@ Alpine.data('scheduleGrid', (initialSchedules, initialColor) => ({
         const end = String(endH).padStart(2, '0') + ':00';
 
         this.dragging = false;
-        this.selected[day] = { start, end };
+        this.selected = { ...this.selected, [day]: { start, end } };
         this.$wire.updateSchedule(day, start, end);
     },
 
     removeDay(day) {
-        delete this.selected[day];
+        const { [day]: _, ...rest } = this.selected;
+        this.selected = rest;
         this.$wire.removeSchedule(day);
-    },
-
-    isSelected(day, hour) {
-        if (this.dragging && this.dragDay === day) {
-            const s = Math.min(this.dragStartHour, this.dragCurrentHour);
-            const e = Math.max(this.dragStartHour, this.dragCurrentHour);
-            return hour >= s && hour <= e;
-        }
-        const sched = this.selected[day];
-        if (!sched) return false;
-        const startH = parseInt(sched.start);
-        const endH = parseInt(sched.end);
-        return hour >= startH && hour < endH;
-    },
-
-    isFirstHour(day, hour) {
-        const sched = this.selected[day];
-        if (!sched) return false;
-        return hour === parseInt(sched.start);
     },
 
     hasSchedule(day) {
         return !!this.selected[day];
     },
 
+    isDraggingDay(day) {
+        return this.dragging && this.dragDay === day;
+    },
+
     scheduleLabel(day) {
         const s = this.selected[day];
         if (!s) return '';
-        return s.start.substring(0, 5) + ' – ' + s.end.substring(0, 5);
-    }
+        return s.start.substring(0, 5) + ' \u2013 ' + s.end.substring(0, 5);
+    },
+
+    dragLabel() {
+        if (!this.dragging) return '';
+        const s = Math.min(this.dragStartHour, this.dragCurrentHour);
+        const e = Math.max(this.dragStartHour, this.dragCurrentHour) + 1;
+        return String(s).padStart(2, '0') + ':00 \u2013 ' + String(e).padStart(2, '0') + ':00';
+    },
+
+    _cellRect(day, hour) {
+        const grid = this.$refs.grid;
+        if (!grid) return null;
+        const cell = grid.querySelector('[data-day="' + day + '"][data-hour="' + hour + '"]');
+        if (!cell) return null;
+        const gridRect = grid.getBoundingClientRect();
+        const cellRect = cell.getBoundingClientRect();
+        return {
+            top: cellRect.top - gridRect.top,
+            left: cellRect.left - gridRect.left,
+            width: cellRect.width,
+            height: cellRect.height,
+        };
+    },
+
+    _overlayGeometry(day, startH, endH) {
+        const topCell = this._cellRect(day, startH);
+        const botCell = this._cellRect(day, endH - 1);
+        if (!topCell || !botCell) return null;
+        return {
+            top: topCell.top,
+            left: topCell.left,
+            width: topCell.width,
+            height: (botCell.top + botCell.height) - topCell.top,
+        };
+    },
+
+    _buildStyle(geo) {
+        if (!geo) return 'display:none';
+        return 'top:' + geo.top + 'px;left:' + geo.left + 'px;width:' + geo.width + 'px;height:' + geo.height + 'px;'
+            + 'background-color:' + this.color + '20;'
+            + 'outline:1px solid ' + this.color + '50;outline-offset:-1px;';
+    },
+
+    overlayStyle(day) {
+        const sched = this.selected[day];
+        if (!sched) return 'display:none';
+        return this._buildStyle(this._overlayGeometry(day, parseInt(sched.start), parseInt(sched.end)));
+    },
+
+    overlayHeight(day) {
+        const sched = this.selected[day];
+        if (!sched) return 0;
+        const geo = this._overlayGeometry(day, parseInt(sched.start), parseInt(sched.end));
+        return geo ? geo.height : 0;
+    },
+
+    dragPreviewStyle() {
+        if (!this.dragging) return 'display:none';
+        const s = Math.min(this.dragStartHour, this.dragCurrentHour);
+        const e = Math.max(this.dragStartHour, this.dragCurrentHour);
+        return this._buildStyle(this._overlayGeometry(this.dragDay, s, e + 1));
+    },
+
+    dragPreviewHeight() {
+        if (!this.dragging) return 0;
+        const s = Math.min(this.dragStartHour, this.dragCurrentHour);
+        const e = Math.max(this.dragStartHour, this.dragCurrentHour);
+        const geo = this._overlayGeometry(this.dragDay, s, e + 1);
+        return geo ? geo.height : 0;
+    },
 }));
 </script>
 @endscript

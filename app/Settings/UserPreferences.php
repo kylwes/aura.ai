@@ -17,6 +17,9 @@ class UserPreferences extends Settings
 
     public string $task_view;
 
+    /** @var array<int> */
+    public array $hidden_project_ids;
+
     public static function group(): string
     {
         return 'preferences';

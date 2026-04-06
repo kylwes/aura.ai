@@ -9,19 +9,73 @@ function monthYearFromDate(dateStr) {
 
 document.addEventListener('alpine:init', () => {
     Alpine.data('weekScroll', () => ({
-        loading: false,
+        loadingPast: false,
+        loadingFuture: false,
+        initialized: false,
 
         init() {
+            if (this.initialized) return;
+            this.initialized = true;
             this.$nextTick(() => {
                 const anchor = this.$refs.grid?.querySelector('[data-anchor]');
                 if (anchor && this.$refs.scroller) {
                     this.$refs.scroller.scrollLeft = anchor.offsetLeft;
                 }
                 if (this.$refs.scroller) {
-                    this.$refs.scroller.scrollTop = 8 * 60;
+                    // Scroll to current time minus 2 hours for context
+                    const now = new Date();
+                    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                    this.$refs.scroller.scrollTop = Math.max(0, nowMinutes - 120);
                 }
                 this.updateLabel();
+                setTimeout(() => this.preloadFuture(), 500);
             });
+
+            // Keyboard shortcuts
+            this._keyHandler = (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+                if (e.target.closest('[role="dialog"]')) return;
+
+                switch (e.key) {
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        this.scrollByDays(-1);
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        this.scrollByDays(1);
+                        break;
+                    case 't':
+                        this.scrollToToday();
+                        break;
+                    case 'n':
+                        Livewire.dispatch('openModal', { component: 'create-task-modal' });
+                        break;
+                    case 's':
+                        Livewire.dispatch('auto-schedule');
+                        break;
+                }
+            };
+            document.addEventListener('keydown', this._keyHandler);
+        },
+
+        destroy() {
+            if (this._keyHandler) {
+                document.removeEventListener('keydown', this._keyHandler);
+            }
+        },
+
+        scrollByDays(count) {
+            if (!this.$refs.scroller) return;
+            const colWidth = parseFloat(getComputedStyle(this.$refs.scroller).getPropertyValue('--col-width')) || 200;
+            this.$refs.scroller.scrollBy({ left: colWidth * count, behavior: 'smooth' });
+        },
+
+        scrollToToday() {
+            const anchor = this.$refs.grid?.querySelector('[data-anchor]');
+            if (anchor && this.$refs.scroller) {
+                this.$refs.scroller.scrollTo({ left: anchor.offsetLeft, behavior: 'smooth' });
+            }
         },
 
         updateLabel() {
@@ -36,32 +90,50 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
+        async preloadPast() {
+            if (this.loadingPast) return;
+            this.loadingPast = true;
+            try {
+                const oldWidth = this.$refs.grid.scrollWidth;
+                const oldLeft = this.$refs.scroller.scrollLeft;
+                await this.$wire.loadMore('past');
+                this.$nextTick(() => {
+                    const newWidth = this.$refs.grid.scrollWidth;
+                    this.$refs.scroller.scrollLeft = oldLeft + (newWidth - oldWidth);
+                    this.loadingPast = false;
+                });
+            } catch {
+                this.loadingPast = false;
+            }
+        },
+
+        async preloadFuture() {
+            if (this.loadingFuture) return;
+            this.loadingFuture = true;
+            try {
+                await this.$wire.loadMore('future');
+                this.$nextTick(() => { this.loadingFuture = false; });
+            } catch {
+                this.loadingFuture = false;
+            }
+        },
+
         async onScroll() {
             this.updateLabel();
-            if (this.loading || !this.$refs.scroller) return;
+            if (!this.$refs.scroller) return;
 
             const { scrollLeft, scrollWidth, clientWidth } = this.$refs.scroller;
 
-            if (scrollLeft < clientWidth) {
-                this.loading = true;
-                try {
-                    const oldWidth = this.$refs.grid.scrollWidth;
-                    const oldLeft = this.$refs.scroller.scrollLeft;
-                    await this.$wire.loadMore('past');
-                    this.$nextTick(() => {
-                        const newWidth = this.$refs.grid.scrollWidth;
-                        this.$refs.scroller.scrollLeft = oldLeft + (newWidth - oldWidth);
-                    });
-                } finally {
-                    this.$nextTick(() => { this.loading = false; });
-                }
-            } else if (scrollWidth - scrollLeft - clientWidth < clientWidth) {
-                this.loading = true;
-                try {
-                    await this.$wire.loadMore('future');
-                } finally {
-                    this.$nextTick(() => { this.loading = false; });
-                }
+            // Trigger at 50% remaining — gives Livewire time to render before user reaches the edge
+            const pastRemaining = scrollLeft;
+            const futureRemaining = scrollWidth - scrollLeft - clientWidth;
+
+            if (pastRemaining < clientWidth && !this.loadingPast) {
+                this.preloadPast();
+            }
+
+            if (futureRemaining < clientWidth && !this.loadingFuture) {
+                this.preloadFuture();
             }
         },
     }));

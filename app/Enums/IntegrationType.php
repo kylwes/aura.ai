@@ -14,6 +14,7 @@ enum IntegrationType: string
     case Asana = 'asana';
     case Teams = 'teams';
     case Outlook = 'outlook';
+    case Productive = 'productive';
 
     public function label(): string
     {
@@ -28,6 +29,7 @@ enum IntegrationType: string
             self::Asana => 'Asana',
             self::Teams => 'Microsoft Teams',
             self::Outlook => 'Outlook',
+            self::Productive => 'Productive',
         };
     }
 
@@ -44,6 +46,7 @@ enum IntegrationType: string
             self::Asana => 'icons.asana',
             self::Teams => 'icons.teams',
             self::Outlook => 'icons.outlook',
+            self::Productive => 'icons.productive',
         };
     }
 
@@ -60,6 +63,7 @@ enum IntegrationType: string
             self::Asana => '#F06A6A',
             self::Teams => '#5059C9',
             self::Outlook => '#0078D4',
+            self::Productive => '#5046E5',
         };
     }
 }

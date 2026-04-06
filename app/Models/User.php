@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
     'name', 'email', 'password', 'timezone', 'avatar_url',
     'working_hours_start', 'working_hours_end', 'working_days',
     'focus_time_enabled', 'focus_time_start', 'focus_time_end',
-    'focus_time_min_duration', 'max_task_duration', 'buffer_time',
+    'focus_time_min_duration', 'focus_time_protected', 'max_task_duration', 'buffer_time',
     'onboarded_at',
 ])]
 #[Hidden(['password', 'remember_token'])]
@@ -31,6 +31,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'working_days' => 'array',
             'focus_time_enabled' => 'boolean',
+            'focus_time_protected' => 'boolean',
             'focus_time_min_duration' => 'integer',
             'max_task_duration' => 'integer',
             'buffer_time' => 'integer',
@@ -49,6 +50,7 @@ class User extends Authenticatable
             'event_panel_collapsed' => json_encode(false),
             'week_days_count' => json_encode(7),
             'task_view' => json_encode('list'),
+            'hidden_project_ids' => json_encode([]),
         ];
 
         $existing = UserSettingsProperty::withoutGlobalScope('user')
@@ -85,12 +87,19 @@ class User extends Authenticatable
     /**
      * Get the effective schedule for a specific date.
      * DayOverride takes precedence over the recurring WorkSchedule.
+     * Temporary overrides (keyed by date string) take precedence over everything.
      *
+     * @param  array<string, array{enabled: bool, start: ?string, end: ?string, lunch_start: ?string, lunch_end: ?string}>|null  $temporaryOverrides
      * @return array{enabled: bool, start: ?string, end: ?string, lunch_start: ?string, lunch_end: ?string}
      */
-    public function effectiveScheduleFor(Carbon $date): array
+    public function effectiveScheduleFor(Carbon $date, ?array $temporaryOverrides = null): array
     {
         $dateString = $date->toDateString();
+
+        // Check temporary overrides first (simulation mode)
+        if ($temporaryOverrides && isset($temporaryOverrides[$dateString])) {
+            return $temporaryOverrides[$dateString];
+        }
 
         // Query directly using DayOverride model
         $override = DayOverride::where('user_id', $this->id)

@@ -47,7 +47,7 @@ it('saves a new day override', function () {
         ->call('save');
 
     $override = DayOverride::where('user_id', $this->user->id)
-        ->where('date', '2026-04-06')
+        ->whereDate('date', '2026-04-06')
         ->first();
 
     expect($override)->not->toBeNull()
@@ -70,7 +70,7 @@ it('updates an existing override', function () {
         ->call('save');
 
     $override = DayOverride::where('user_id', $this->user->id)
-        ->where('date', '2026-04-06')
+        ->whereDate('date', '2026-04-06')
         ->first();
 
     expect($override->start)->toBe('08:00')
@@ -83,7 +83,7 @@ it('saves a day off override', function () {
         ->call('save');
 
     $override = DayOverride::where('user_id', $this->user->id)
-        ->where('date', '2026-04-06')
+        ->whereDate('date', '2026-04-06')
         ->first();
 
     expect($override->is_day_off)->toBeTrue()
@@ -102,5 +102,5 @@ it('resets override to default', function () {
     Livewire::test(DaySettingsModal::class, ['date' => '2026-04-06'])
         ->call('resetToDefault');
 
-    expect(DayOverride::where('user_id', $this->user->id)->where('date', '2026-04-06')->exists())->toBeFalse();
+    expect(DayOverride::where('user_id', $this->user->id)->whereDate('date', '2026-04-06')->exists())->toBeFalse();
 });

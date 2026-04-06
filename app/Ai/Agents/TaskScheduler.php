@@ -53,6 +53,7 @@ CRITICAL RULES:
 - Non-project tasks with URGENT priority MAY be scheduled in any available slot, including time that overlaps with project blocks — urgent tasks override project boundaries.
 - Non-project tasks that are NOT urgent must be scheduled OUTSIDE project block time windows — use only the general available slots that do not overlap with any project block.
 - GROUP tasks by project: schedule all tasks from the same project consecutively (back-to-back) within the same project time window. This minimizes context switching. Within a project group, order by priority then deadline.
+- Tasks with dependencies MUST be scheduled after all their dependencies are completed or scheduled earlier in the day.
 - Return ALL tasks you are placing — both newly scheduled pending tasks AND AI-scheduled tasks you are moving to a new slot.
 - Do NOT return AI-scheduled tasks that stay in their current slot (only return them if you are moving them).
 
@@ -78,14 +79,17 @@ PROMPT;
         ];
     }
 
-    public static function buildContext(User $user): string
+    /**
+     * @param  array<string, array{enabled: bool, start: ?string, end: ?string, lunch_start: ?string, lunch_end: ?string}>|null  $temporaryOverrides
+     */
+    public static function buildContext(User $user, ?array $temporaryOverrides = null): string
     {
         $tz = $user->timezone ?? 'UTC';
         $now = Carbon::now($tz);
 
         $pendingTasks = $user->tasks()
             ->where('status', 'pending')
-            ->with('project')
+            ->with(['project', 'dependencies'])
             ->orderByRaw("CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END")
             ->orderBy('deadline')
             ->get();
@@ -101,6 +105,19 @@ PROMPT;
             ->get();
 
         $schedules = $user->workSchedules()->get();
+
+        // Compute slots early so capacity data is available when building pending task lines
+        $aiTaskIds = $aiScheduledTasks->pluck('id')->toArray();
+        $slots = static::computeAvailableSlots($user, $aiTaskIds, $temporaryOverrides);
+
+        // Build capacity-by-date map for deadline pressure labels
+        $capacityByDate = [];
+        foreach ($slots as $slot) {
+            $start = Carbon::parse($slot['date'].' '.$slot['start'], $tz);
+            $end = Carbon::parse($slot['date'].' '.$slot['end'], $tz);
+            $minutes = (int) $start->diffInMinutes($end);
+            $capacityByDate[$slot['date']] = ($capacityByDate[$slot['date']] ?? 0) + $minutes;
+        }
 
         $context = "Current date and time: {$now->format('Y-m-d H:i')} ({$tz})\n\n";
 
@@ -118,9 +135,54 @@ PROMPT;
         }
         $context .= "- Buffer between tasks: {$user->buffer_time} minutes\n";
         if ($user->focus_time_enabled) {
-            $context .= "- Focus time: {$user->focus_time_start} - {$user->focus_time_end} (prefer long tasks 60+ min here)\n";
+            if ($user->focus_time_protected ?? false) {
+                $minDuration = $user->focus_time_min_duration ?? 60;
+                $context .= "- PROTECTED focus time: {$user->focus_time_start} - {$user->focus_time_end} — ONLY tasks >= {$minDuration}min allowed, no other scheduling permitted\n";
+            } else {
+                $context .= "- Focus time: {$user->focus_time_start} - {$user->focus_time_end} (prefer long tasks 60+ min here)\n";
+            }
         }
         $context .= "\n";
+
+        $overrides = $user->dayOverrides()
+            ->where('date', '>=', $now->copy()->startOfDay())
+            ->orderBy('date')
+            ->limit(30)
+            ->get();
+
+        if ($overrides->isNotEmpty()) {
+            $context .= "## Day Overrides (custom schedule for specific dates)\n";
+            $context .= "These override the regular working schedule above.\n";
+            foreach ($overrides as $override) {
+                if ($override->is_day_off) {
+                    $context .= "- {$override->date->format('Y-m-d')} ({$override->date->format('l')}): DAY OFF\n";
+                } else {
+                    $line = "- {$override->date->format('Y-m-d')} ({$override->date->format('l')}): ".substr($override->start, 0, 5).'-'.substr($override->end, 0, 5);
+                    if ($override->lunch_start && $override->lunch_end) {
+                        $line .= ' (lunch '.substr($override->lunch_start, 0, 5).'-'.substr($override->lunch_end, 0, 5).')';
+                    }
+                    $context .= $line."\n";
+                }
+            }
+            $context .= "\n";
+        }
+
+        if ($temporaryOverrides) {
+            $context .= "## Temporary Schedule Changes (simulation)\n";
+            foreach ($temporaryOverrides as $dateStr => $override) {
+                $dayName = Carbon::parse($dateStr)->format('l');
+                if (! $override['enabled']) {
+                    $context .= "- {$dateStr} ({$dayName}): DAY OFF\n";
+                } else {
+                    $line = "- {$dateStr} ({$dayName}): ".substr($override['start'], 0, 5).'-'.substr($override['end'], 0, 5);
+                    if ($override['lunch_start'] && $override['lunch_end']) {
+                        $line .= ' (lunch '.substr($override['lunch_start'], 0, 5).'-'.substr($override['lunch_end'], 0, 5).')';
+                    }
+                    $context .= $line."\n";
+                }
+            }
+            $context .= "\n";
+        }
 
         $context .= "## Pending Tasks to Schedule (ordered by priority then deadline)\n";
         if ($pendingTasks->isEmpty()) {
@@ -130,7 +192,32 @@ PROMPT;
                 $duration = $task->estimated_duration ?? 60;
                 $deadline = $task->deadline ? $task->deadline->format('Y-m-d') : 'No deadline';
                 $projectLabel = $task->project ? " - Project: \"{$task->project->title}\" (ID: {$task->project_id})" : '';
-                $context .= "- [ID: {$task->id}] \"{$task->title}\" - Priority: {$task->priority->value} - Duration: {$duration}min - Deadline: {$deadline}{$projectLabel}\n";
+                $staleMarker = $task->reschedule_count >= 3 ? " (STALE: rescheduled {$task->reschedule_count} times)" : '';
+
+                $capacityLabel = '';
+                if ($task->deadline) {
+                    $deadlineDate = $task->deadline->copy()->setTimezone($tz)->format('Y-m-d');
+                    $today = $now->format('Y-m-d');
+                    $totalMinutes = 0;
+                    foreach ($capacityByDate as $date => $minutes) {
+                        if ($date >= $today && $date <= $deadlineDate) {
+                            $totalMinutes += $minutes;
+                        }
+                    }
+                    $ratio = $duration > 0 ? round($totalMinutes / $duration, 2) : null;
+                    if ($ratio !== null) {
+                        $pressure = $ratio < 1.0 ? 'critical' : ($ratio < 1.5 ? 'tight' : ($ratio < 2.0 ? 'moderate' : 'comfortable'));
+                        $capacityLabel = " - Capacity: {$ratio}x ({$pressure})";
+                    }
+                }
+
+                $depLabel = '';
+                if ($task->dependencies->isNotEmpty()) {
+                    $depParts = $task->dependencies->map(fn ($d) => "[ID:{$d->id}]({$d->status->value})");
+                    $depLabel = ' - Depends on: '.$depParts->implode(', ');
+                }
+
+                $context .= "- [ID: {$task->id}] \"{$task->title}\" - Priority: {$task->priority->value} - Duration: {$duration}min - Deadline: {$deadline}{$projectLabel}{$staleMarker}{$capacityLabel}{$depLabel}\n";
             }
             $context .= "\n";
         }
@@ -142,14 +229,11 @@ PROMPT;
             foreach ($aiScheduledTasks as $task) {
                 $duration = $task->estimated_duration ?? 60;
                 $deadline = $task->deadline ? $task->deadline->format('Y-m-d') : 'No deadline';
-                $context .= "- [ID: {$task->id}] \"{$task->title}\" - Priority: {$task->priority->value} - Duration: {$duration}min - Currently: {$task->scheduled_start->setTimezone($tz)->format('Y-m-d H:i')} - Deadline: {$deadline}\n";
+                $staleMarker = $task->reschedule_count >= 3 ? " (STALE: rescheduled {$task->reschedule_count} times)" : '';
+                $context .= "- [ID: {$task->id}] \"{$task->title}\" - Priority: {$task->priority->value} - Duration: {$duration}min - Currently: {$task->scheduled_start->setTimezone($tz)->format('Y-m-d H:i')} - Deadline: {$deadline}{$staleMarker}\n";
             }
             $context .= "\n";
         }
-
-        // Compute slots treating AI-scheduled tasks as free (since they can be moved)
-        $aiTaskIds = $aiScheduledTasks->pluck('id')->toArray();
-        $slots = static::computeAvailableSlots($user, $aiTaskIds);
 
         $context .= "## Available Time Slots\n";
         $context .= "Each slot shows date, start time, and end time.\n";
@@ -200,33 +284,30 @@ PROMPT;
      */
     /**
      * @param  array<int>  $excludeTaskIds  Task IDs to treat as free (e.g. AI-scheduled tasks that can be moved)
+     * @param  array<string, array{enabled: bool, start: ?string, end: ?string, lunch_start: ?string, lunch_end: ?string}>|null  $temporaryOverrides
      * @return array<int, array{date: string, start: string, end: string}>
      */
-    public static function computeAvailableSlots(User $user, array $excludeTaskIds = []): array
+    public static function computeAvailableSlots(User $user, array $excludeTaskIds = [], ?array $temporaryOverrides = null): array
     {
         $tz = $user->timezone ?? 'UTC';
         $now = Carbon::now($tz);
         $buffer = $user->buffer_time ?? 15;
 
-        // Index work schedules by ISO day number
-        $workSchedules = $user->workSchedules()->get()->keyBy('day');
-
         $slots = [];
 
         for ($dayOffset = 0; $dayOffset < 365; $dayOffset++) {
             $day = $now->copy()->addDays($dayOffset)->startOfDay();
-            $isoDay = $day->dayOfWeekIso;
 
-            $schedule = $workSchedules->get($isoDay);
+            $schedule = $user->effectiveScheduleFor($day, $temporaryOverrides);
 
-            if (! $schedule || ! $schedule->enabled || ! $schedule->start || ! $schedule->end) {
+            if (! $schedule['enabled'] || ! $schedule['start'] || ! $schedule['end']) {
                 continue;
             }
 
-            $dayStart = $day->copy()->setTimeFromTimeString($schedule->start);
-            $dayEnd = $day->copy()->setTimeFromTimeString($schedule->end);
-            $lunchStart = $schedule->lunch_start;
-            $lunchEnd = $schedule->lunch_end;
+            $dayStart = $day->copy()->setTimeFromTimeString($schedule['start']);
+            $dayEnd = $day->copy()->setTimeFromTimeString($schedule['end']);
+            $lunchStart = $schedule['lunch_start'];
+            $lunchEnd = $schedule['lunch_end'];
 
             // On the current day, don't schedule before now (rounded up to 15-min)
             $scanFrom = $dayStart->greaterThan($now)
@@ -245,6 +326,20 @@ PROMPT;
                 $occupied->push([
                     'start' => $day->copy()->setTimeFromTimeString($lunchStart),
                     'end' => $day->copy()->setTimeFromTimeString($lunchEnd),
+                    'no_buffer' => true,
+                ]);
+            }
+
+            // Protected focus time is a hard block — exclude it from general slots
+            if (
+                ($user->focus_time_enabled ?? false) &&
+                ($user->focus_time_protected ?? false) &&
+                $user->focus_time_start &&
+                $user->focus_time_end
+            ) {
+                $occupied->push([
+                    'start' => $day->copy()->setTimeFromTimeString($user->focus_time_start),
+                    'end' => $day->copy()->setTimeFromTimeString($user->focus_time_end),
                     'no_buffer' => true,
                 ]);
             }
@@ -324,6 +419,136 @@ PROMPT;
     }
 
     /**
+     * Compute available slots within focus time windows only.
+     *
+     * Returns slots that fall inside the user's focus time window, minus any
+     * calendar events or task blocks that overlap that window. Used by
+     * ScheduleTasksJob to place long tasks (>= focus_time_min_duration) when
+     * focus time is protected.
+     *
+     * @param  array<int>  $excludeTaskIds  Task IDs to treat as free (e.g. AI-scheduled tasks that can be moved)
+     * @param  array<string, array{enabled: bool, start: ?string, end: ?string, lunch_start: ?string, lunch_end: ?string}>|null  $temporaryOverrides
+     * @return array<int, array{date: string, start: string, end: string}>
+     */
+    public static function computeFocusSlots(User $user, array $excludeTaskIds = [], ?array $temporaryOverrides = null): array
+    {
+        if (
+            ! ($user->focus_time_enabled ?? false) ||
+            ! ($user->focus_time_protected ?? false) ||
+            ! $user->focus_time_start ||
+            ! $user->focus_time_end
+        ) {
+            return [];
+        }
+
+        $tz = $user->timezone ?? 'UTC';
+        $now = Carbon::now($tz);
+        $buffer = $user->buffer_time ?? 15;
+
+        $slots = [];
+
+        for ($dayOffset = 0; $dayOffset < 365; $dayOffset++) {
+            $day = $now->copy()->addDays($dayOffset)->startOfDay();
+
+            $schedule = $user->effectiveScheduleFor($day, $temporaryOverrides);
+
+            if (! $schedule['enabled'] || ! $schedule['start'] || ! $schedule['end']) {
+                continue;
+            }
+
+            $dayStart = $day->copy()->setTimeFromTimeString($schedule['start']);
+            $dayEnd = $day->copy()->setTimeFromTimeString($schedule['end']);
+
+            $focusStart = $day->copy()->setTimeFromTimeString($user->focus_time_start);
+            $focusEnd = $day->copy()->setTimeFromTimeString($user->focus_time_end);
+
+            // Focus window must fall within the working day
+            $windowStart = $focusStart->greaterThan($dayStart) ? $focusStart->copy() : $dayStart->copy();
+            $windowEnd = $focusEnd->lessThan($dayEnd) ? $focusEnd->copy() : $dayEnd->copy();
+
+            // On the current day, don't schedule in the past
+            if ($dayOffset === 0) {
+                $minStart = $now->copy()->ceilMinutes(15);
+                if ($minStart->greaterThan($windowStart)) {
+                    $windowStart = $minStart->copy();
+                }
+            }
+
+            if ($windowStart->greaterThanOrEqualTo($windowEnd)) {
+                continue;
+            }
+
+            // Collect occupied blocks within the focus window
+            $occupied = collect();
+
+            $windowEndUtc = $windowEnd->copy()->utc();
+            $windowStartUtc = $windowStart->copy()->utc();
+
+            $user->calendarEvents()
+                ->where('starts_at', '<', $windowEndUtc)
+                ->where('ends_at', '>', $windowStartUtc)
+                ->orderBy('starts_at')
+                ->each(function ($event) use ($occupied) {
+                    $occupied->push(['start' => $event->starts_at, 'end' => $event->ends_at]);
+                });
+
+            TaskBlock::query()
+                ->whereHas('task', fn ($q) => $q->where('user_id', $user->id)->where('status', 'scheduled'))
+                ->when(! empty($excludeTaskIds), fn ($q) => $q->whereNotIn('task_id', $excludeTaskIds))
+                ->where('scheduled_start', '<', $windowEndUtc)
+                ->where('scheduled_end', '>', $windowStartUtc)
+                ->orderBy('scheduled_start')
+                ->each(function ($block) use ($occupied) {
+                    $occupied->push(['start' => $block->scheduled_start, 'end' => $block->scheduled_end]);
+                });
+
+            $occupied = $occupied->sortBy('start')->values();
+
+            $cursor = $windowStart->copy();
+
+            foreach ($occupied as $block) {
+                $blockStart = $block['start']->copy()->setTimezone($tz);
+                $blockEnd = $block['end']->copy()->setTimezone($tz);
+
+                if ($blockStart->greaterThan($cursor)) {
+                    $gapMinutes = (int) $cursor->diffInMinutes($blockStart);
+
+                    if ($gapMinutes >= 15) {
+                        $slots[] = [
+                            'date' => $cursor->format('Y-m-d'),
+                            'start' => $cursor->format('H:i'),
+                            'end' => $blockStart->format('H:i'),
+                        ];
+                    }
+                }
+
+                $afterBlock = $blockEnd->copy()->addMinutes($buffer);
+                if ($afterBlock->greaterThan($cursor)) {
+                    $cursor = $afterBlock;
+                }
+            }
+
+            if ($cursor->lessThan($windowEnd)) {
+                $gapMinutes = (int) $cursor->diffInMinutes($windowEnd);
+
+                if ($gapMinutes >= 15) {
+                    $slots[] = [
+                        'date' => $cursor->format('Y-m-d'),
+                        'start' => $cursor->format('H:i'),
+                        'end' => $windowEnd->format('H:i'),
+                    ];
+                }
+            }
+
+            if (count($slots) >= 200) {
+                break;
+            }
+        }
+
+        return $slots;
+    }
+
+    /**
      * Compute available slots constrained to a project's calendar blocks.
      *
      * Returns the intersection of general available slots with the project's block windows.
@@ -336,8 +561,17 @@ PROMPT;
         $tz = $user->timezone ?? 'UTC';
         $availableSlots = static::computeAvailableSlots($user, $excludeTaskIds);
 
+        // If project has no schedules, no blocks, and no date range — treat as unconstrained
+        $hasSchedules = $project->schedules()->exists();
+        $hasBlocks = $project->blocks()->where('scheduled_end', '>', Carbon::now($tz)->utc())->exists();
+        $hasDateRange = $project->starts_at || $project->ends_at;
+
+        if (! $hasSchedules && ! $hasBlocks && ! $hasDateRange) {
+            return $availableSlots;
+        }
+
         // Collect project time windows from both recurring schedules and one-off blocks
-        $schedules = $project->schedules()->get()->groupBy('day');
+        $schedules = $hasSchedules ? $project->schedules()->get()->groupBy('day') : collect();
         $oneOffBlocks = $project->blocks()
             ->where('scheduled_end', '>', Carbon::now($tz)->utc())
             ->orderBy('scheduled_start')

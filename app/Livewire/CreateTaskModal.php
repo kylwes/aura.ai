@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
+use App\Jobs\ExpandRecurringTasksJob;
 use App\Jobs\ScheduleTasksJob;
 use LivewireUI\Modal\ModalComponent;
 
@@ -21,6 +22,28 @@ class CreateTaskModal extends ModalComponent
 
     public ?int $projectId = null;
 
+    public bool $isRecurring = false;
+
+    public string $recurrenceType = 'weekly';
+
+    public array $recurrenceDays = [];
+
+    public ?string $recurrenceEndDate = null;
+
+    public function mount(?int $projectId = null): void
+    {
+        $this->projectId = $projectId;
+    }
+
+    public function toggleDay(int $day): void
+    {
+        if (in_array($day, $this->recurrenceDays)) {
+            $this->recurrenceDays = array_values(array_diff($this->recurrenceDays, [$day]));
+        } else {
+            $this->recurrenceDays[] = $day;
+        }
+    }
+
     public function save(): void
     {
         $this->validate([
@@ -30,9 +53,11 @@ class CreateTaskModal extends ModalComponent
             'estimatedDuration' => 'nullable|integer|min:1',
             'deadline' => 'nullable|date',
             'projectId' => 'nullable|integer|exists:projects,id',
+            'recurrenceDays' => 'array',
+            'recurrenceEndDate' => 'nullable|date',
         ]);
 
-        auth()->user()->tasks()->create([
+        $data = [
             'title' => $this->title,
             'description' => $this->description ?: null,
             'priority' => $this->priority,
@@ -40,11 +65,24 @@ class CreateTaskModal extends ModalComponent
             'deadline' => $this->deadline ?: null,
             'status' => TaskStatus::Pending,
             'project_id' => $this->projectId,
-        ]);
+        ];
+
+        if ($this->isRecurring && $this->recurrenceType) {
+            $data['recurrence_type'] = $this->recurrenceType;
+            $data['recurrence_days'] = $this->recurrenceType === 'weekly' ? $this->recurrenceDays : null;
+            $data['recurrence_end_date'] = $this->recurrenceEndDate ?: null;
+        }
+
+        auth()->user()->tasks()->create($data);
 
         $this->dispatch('task-created');
+        $this->dispatch('toast', type: 'info', title: 'Scheduling...', body: 'Scheduling your new task.');
 
-        ScheduleTasksJob::dispatch(auth()->user());
+        if ($this->isRecurring) {
+            ExpandRecurringTasksJob::dispatch();
+        } else {
+            ScheduleTasksJob::debounce(auth()->user());
+        }
 
         $this->forceClose()->closeModal();
     }

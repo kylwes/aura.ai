@@ -2,6 +2,8 @@
 
 use App\Enums\IntegrationStatus;
 use App\Enums\IntegrationType;
+use App\Jobs\ExpandRecurringTasksJob;
+use App\Jobs\PollProvidersJob;
 use App\Jobs\SyncGoogleCalendarJob;
 use App\Models\User;
 use Illuminate\Foundation\Inspiring;
@@ -20,3 +22,13 @@ Schedule::call(function () {
         SyncGoogleCalendarJob::dispatch($user);
     });
 })->everyFiveMinutes()->name('sync-google-calendars');
+
+Schedule::call(function () {
+    User::whereHas('integrations', function ($query) {
+        $query->where('status', IntegrationStatus::Connected);
+    })->each(function (User $user) {
+        PollProvidersJob::dispatch($user);
+    });
+})->everyFiveMinutes()->name('poll-task-providers');
+
+Schedule::job(new ExpandRecurringTasksJob)->dailyAt('06:00')->name('expand-recurring-tasks');

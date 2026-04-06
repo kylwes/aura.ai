@@ -1,11 +1,7 @@
 <div>
     @if ($task)
         {{-- Header --}}
-        <div class="flex items-center justify-between px-8 pt-6">
-            <div class="flex items-center gap-2">
-                <div class="h-6 w-1 rounded-full bg-accent-600"></div>
-                <h2 class="text-xl font-semibold text-neutral-900 dark:text-neutral-100">Edit Task</h2>
-            </div>
+        <div class="flex items-center justify-end px-8 pt-4">
             <button wire:click="$dispatch('closeModal')" class="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-300">
                 <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
             </button>
@@ -16,7 +12,7 @@
             <div>
                 <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Title</label>
                 <input type="text"
-                       wire:model.blur="task.title"
+                       value="{{ $task->title }}"
                        wire:change="updateField('title', $event.target.value)"
                        class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm font-medium text-neutral-900 placeholder-neutral-400 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-100">
             </div>
@@ -24,11 +20,10 @@
             {{-- Description --}}
             <div>
                 <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Description <span class="normal-case tracking-normal text-neutral-300 dark:text-neutral-600">— optional</span></label>
-                <textarea wire:model.blur="task.description"
-                          wire:change="updateField('description', $event.target.value)"
+                <textarea wire:change="updateField('description', $event.target.value)"
                           rows="3"
                           placeholder="Add a description..."
-                          class="mt-1 w-full resize-none rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm text-neutral-700 placeholder-neutral-400 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-300 dark:placeholder-neutral-500"></textarea>
+                          class="mt-1 w-full resize-none rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm text-neutral-700 placeholder-neutral-400 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-300 dark:placeholder-neutral-500">{{ $task->description }}</textarea>
             </div>
 
             {{-- Priority + Duration --}}
@@ -110,6 +105,70 @@
                 </div>
             @endif
 
+            {{-- Recurrence info --}}
+            @if ($task->parent_task_id && $task->parentTask)
+                <div class="flex items-center gap-2 rounded-lg bg-neutral-100 px-3 py-2 dark:bg-neutral-800">
+                    <span class="text-sm">🔁</span>
+                    <span class="text-xs text-neutral-500 dark:text-neutral-400">
+                        Recurring:
+                        @if ($task->parentTask->recurrence_type === 'daily')
+                            every day
+                        @elseif ($task->parentTask->recurrence_type === 'weekly')
+                            every {{ collect($task->parentTask->recurrence_days ?? [])->map(fn ($d) => match($d) { 1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 7 => 'Sun' })->implode(', ') }}
+                        @elseif ($task->parentTask->recurrence_type === 'monthly')
+                            monthly
+                        @endif
+                    </span>
+                </div>
+            @endif
+
+            {{-- Dependencies --}}
+            <div>
+                <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Depends on</label>
+
+                @if (count($dependencyIds) > 0)
+                    <div class="mt-2 space-y-1">
+                        @foreach (auth()->user()->tasks()->whereIn('id', $dependencyIds)->get() as $dep)
+                            <div class="flex items-center justify-between rounded-lg bg-neutral-100 px-2.5 py-1.5 dark:bg-neutral-800">
+                                <span class="truncate text-xs font-medium text-neutral-700 dark:text-neutral-300">{{ $dep->title }}</span>
+                                <button wire:click="removeDependency({{ $dep->id }})" class="ml-2 shrink-0 text-neutral-400 hover:text-red-500">
+                                    <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
+                {{-- Add dependency search --}}
+                <div class="relative mt-2">
+                    <input type="text"
+                           wire:model.live.debounce.300ms="dependencySearch"
+                           placeholder="Search tasks to add..."
+                           class="w-full rounded-lg border-0 bg-neutral-100 px-3 py-2 text-xs text-neutral-900 placeholder-neutral-400 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-100">
+
+                    @if (strlen($dependencySearch) >= 2)
+                        @php
+                            $searchResults = auth()->user()->tasks()
+                                ->where('id', '!=', $task->id)
+                                ->whereNotIn('id', $dependencyIds)
+                                ->where('title', 'like', '%' . $dependencySearch . '%')
+                                ->limit(5)
+                                ->get();
+                        @endphp
+                        @if ($searchResults->isNotEmpty())
+                            <div class="absolute left-0 right-0 top-full z-10 mt-1 rounded-lg bg-white py-1 shadow-lg ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800">
+                                @foreach ($searchResults as $result)
+                                    <button wire:click="addDependency({{ $result->id }})"
+                                            class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                                        <span class="truncate font-medium text-neutral-700 dark:text-neutral-300">{{ $result->title }}</span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
+                    @endif
+                </div>
+            </div>
+
             {{-- AI Reasoning --}}
             @if ($task->ai_reasoning)
                 <div class="rounded-lg bg-accent-50 p-4 dark:bg-accent-950/20">
@@ -142,6 +201,20 @@
                     Done
                 </button>
 
+                @if ($task->status === \App\Enums\TaskStatus::OnHold)
+                    <button wire:click="resume" title="Resume task"
+                            class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-amber-500 transition-colors hover:bg-amber-50 dark:hover:bg-amber-900/20">
+                        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"/></svg>
+                        Resume
+                    </button>
+                @else
+                    <button wire:click="putOnHold" title="Put on hold — waiting for someone else"
+                            class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-400 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400">
+                        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5"/></svg>
+                        On hold
+                    </button>
+                @endif
+
                 <button wire:click="dismiss" wire:confirm="Are you sure you want to dismiss this task?" title="Dismiss"
                         class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400">
                     <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
@@ -149,10 +222,23 @@
                 </button>
             </div>
 
-            <button wire:click="reschedule" class="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-700">
-                Reschedule
-                <x-icons.sparkle class="size-3.5" />
-            </button>
+            <div class="flex items-center gap-2">
+                @if ($task->scheduled_start)
+                    @php $tz = auth()->user()->timezone ?? 'UTC'; @endphp
+                    <a href="{{ route('planner') }}?date={{ $task->scheduled_start->copy()->setTimezone($tz)->format('Y-m-d') }}"
+                       wire:navigate
+                       @click="$dispatch('closeModal')"
+                       class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 9v9.75"/></svg>
+                        {{ $task->scheduled_start->copy()->setTimezone($tz)->format('M j') }}
+                    </a>
+                @endif
+
+                <button wire:click="reschedule" class="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-700">
+                    Reschedule
+                    <x-icons.sparkle class="size-3.5" />
+                </button>
+            </div>
         </div>
     @endif
 </div>

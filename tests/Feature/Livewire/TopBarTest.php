@@ -10,7 +10,7 @@ it('renders the top bar', function () {
     Livewire::actingAs($user)
         ->test(TopBar::class)
         ->assertSee('Today')
-        ->assertSee('Auto-schedule')
+        ->assertSee('Schedule')
         ->assertStatus(200);
 });
 

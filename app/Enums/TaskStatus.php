@@ -9,4 +9,5 @@ enum TaskStatus: string
     case Completed = 'completed';
     case Dismissed = 'dismissed';
     case Snoozed = 'snoozed';
+    case OnHold = 'on_hold';
 }

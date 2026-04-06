@@ -82,6 +82,52 @@
             </div>
         </div>
 
+        {{-- Recurrence --}}
+        <div>
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" wire:model.live="isRecurring"
+                       class="size-4 rounded border-neutral-300 text-accent-600 focus:ring-accent-500 dark:border-neutral-600 dark:bg-neutral-800">
+                <span class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Repeats</span>
+            </label>
+
+            @if ($isRecurring)
+                <div class="mt-2 space-y-3 rounded-lg bg-neutral-100 p-3 dark:bg-neutral-800">
+                    {{-- Type --}}
+                    <div class="flex items-center gap-1.5">
+                        @foreach (['daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly'] as $type => $label)
+                            <button type="button"
+                                    wire:click="$set('recurrenceType', '{{ $type }}')"
+                                    class="rounded-full px-3 py-1 text-xs font-medium transition-colors {{ $recurrenceType === $type ? 'bg-accent-100 text-accent-700 dark:bg-accent-900/40 dark:text-accent-400' : 'text-neutral-500 hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-700' }}">
+                                {{ $label }}
+                            </button>
+                        @endforeach
+                    </div>
+
+                    {{-- Day picker for weekly --}}
+                    @if ($recurrenceType === 'weekly')
+                        <div class="flex items-center gap-1">
+                            @foreach ([1 => 'Mo', 2 => 'Tu', 3 => 'We', 4 => 'Th', 5 => 'Fr', 6 => 'Sa', 7 => 'Su'] as $dayNum => $dayLabel)
+                                <button type="button"
+                                        wire:click="toggleDay({{ $dayNum }})"
+                                        class="flex size-8 items-center justify-center rounded-full text-[10px] font-semibold transition-colors
+                                            {{ in_array($dayNum, $recurrenceDays) ? 'bg-accent-600 text-white' : 'bg-neutral-200 text-neutral-500 hover:bg-neutral-300 dark:bg-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-600' }}">
+                                    {{ $dayLabel }}
+                                </button>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    {{-- End date --}}
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-neutral-400 dark:text-neutral-500">Until</span>
+                        <input type="date" wire:model="recurrenceEndDate"
+                               class="rounded-lg border-0 bg-neutral-200 px-2 py-1 text-xs text-neutral-700 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-700 dark:text-neutral-300 dark:[color-scheme:dark]">
+                        <span class="text-[10px] text-neutral-400 dark:text-neutral-500">(or leave empty for forever)</span>
+                    </div>
+                </div>
+            @endif
+        </div>
+
         {{-- Description --}}
         <div>
             <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Description</label>

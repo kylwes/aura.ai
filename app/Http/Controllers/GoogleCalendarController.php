@@ -48,7 +48,7 @@ class GoogleCalendarController extends Controller
             $user->integrations()->create([
                 'type' => IntegrationType::GoogleCalendar,
                 'status' => IntegrationStatus::Connected,
-                'configuration' => array_merge($tokens, ['push_target' => 'aura_calendar']),
+                'configuration' => $tokens,
                 'connected_at' => now(),
             ]);
         }

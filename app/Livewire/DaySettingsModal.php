@@ -33,17 +33,17 @@ class DaySettingsModal extends ModalComponent
         if ($override) {
             $this->hasExistingOverride = true;
             $this->isDayOff = $override->is_day_off;
-            $this->start = $override->start;
-            $this->end = $override->end;
-            $this->lunchStart = $override->lunch_start;
-            $this->lunchEnd = $override->lunch_end;
+            $this->start = $override->start ? substr($override->start, 0, 5) : null;
+            $this->end = $override->end ? substr($override->end, 0, 5) : null;
+            $this->lunchStart = $override->lunch_start ? substr($override->lunch_start, 0, 5) : null;
+            $this->lunchEnd = $override->lunch_end ? substr($override->lunch_end, 0, 5) : null;
         } else {
             $schedule = $user->effectiveScheduleFor(Carbon::parse($date));
             $this->isDayOff = ! $schedule['enabled'];
-            $this->start = $schedule['start'];
-            $this->end = $schedule['end'];
-            $this->lunchStart = $schedule['lunch_start'];
-            $this->lunchEnd = $schedule['lunch_end'];
+            $this->start = $schedule['start'] ? substr($schedule['start'], 0, 5) : null;
+            $this->end = $schedule['end'] ? substr($schedule['end'], 0, 5) : null;
+            $this->lunchStart = $schedule['lunch_start'] ? substr($schedule['lunch_start'], 0, 5) : null;
+            $this->lunchEnd = $schedule['lunch_end'] ? substr($schedule['lunch_end'], 0, 5) : null;
         }
     }
 
@@ -69,9 +69,14 @@ class DaySettingsModal extends ModalComponent
             DayOverride::create(array_merge(['user_id' => $user->id, 'date' => $this->date], $data));
         }
 
-        $this->rescheduleAffectedTasks($user, [$this->date]);
+        $rescheduled = $this->rescheduleAffectedTasks($user, [$this->date]);
 
         $this->dispatch('day-override-saved');
+        $this->dispatch('toast',
+            type: $rescheduled ? 'info' : 'success',
+            title: 'Day settings saved',
+            body: $rescheduled ? 'Rescheduling affected tasks...' : 'Schedule updated.',
+        );
         $this->forceClose()->closeModal();
     }
 
@@ -80,12 +85,17 @@ class DaySettingsModal extends ModalComponent
         $user = auth()->user();
 
         DayOverride::where('user_id', $user->id)
-            ->where('date', $this->date)
+            ->whereDate('date', $this->date)
             ->delete();
 
-        $this->rescheduleAffectedTasks($user, [$this->date]);
+        $rescheduled = $this->rescheduleAffectedTasks($user, [$this->date]);
 
         $this->dispatch('day-override-saved');
+        $this->dispatch('toast',
+            type: $rescheduled ? 'info' : 'success',
+            title: 'Reset to default',
+            body: $rescheduled ? 'Rescheduling affected tasks...' : 'Schedule restored.',
+        );
         $this->forceClose()->closeModal();
     }
 
@@ -100,13 +110,12 @@ class DaySettingsModal extends ModalComponent
     }
 
     /** @param array<string> $dates */
-    private function rescheduleAffectedTasks(mixed $user, array $dates): void
+    private function rescheduleAffectedTasks(mixed $user, array $dates): bool
     {
         $tz = $user->timezone ?? 'UTC';
 
         $hasAffectedTasks = false;
         foreach ($dates as $dateStr) {
-            $schedule = $user->effectiveScheduleFor(Carbon::parse($dateStr));
             $dayStart = Carbon::parse($dateStr, $tz)->startOfDay();
             $dayEnd = $dayStart->copy()->endOfDay();
 
@@ -116,19 +125,7 @@ class DaySettingsModal extends ModalComponent
                 ->where('is_pinned', false)
                 ->where('scheduled_start', '>=', $dayStart->utc())
                 ->where('scheduled_start', '<=', $dayEnd->utc())
-                ->get()
-                ->filter(function ($task) use ($schedule, $tz) {
-                    if (! $schedule['enabled']) {
-                        return true;
-                    }
-
-                    $start = $task->scheduled_start->copy()->setTimezone($tz);
-                    $end = $task->scheduled_end->copy()->setTimezone($tz);
-                    $workStart = $start->copy()->setTimeFromTimeString($schedule['start']);
-                    $workEnd = $start->copy()->setTimeFromTimeString($schedule['end']);
-
-                    return $start->lessThan($workStart) || $end->greaterThan($workEnd);
-                });
+                ->get();
 
             if ($affectedTasks->isNotEmpty()) {
                 $hasAffectedTasks = true;
@@ -143,7 +140,9 @@ class DaySettingsModal extends ModalComponent
         }
 
         if ($hasAffectedTasks) {
-            ScheduleTasksJob::dispatch($user);
+            ScheduleTasksJob::debounce($user);
         }
+
+        return $hasAffectedTasks;
     }
 }

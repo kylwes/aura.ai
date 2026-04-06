@@ -12,7 +12,7 @@
     $isCompact = $durationMinutes <= 30;
 @endphp
 
-<div wire:key="we-{{ $event->id }}"
+<div wire:key="we-{{ $event->id }}-{{ $localStart->format('Y-m-d-Hi') }}"
      data-item-type="event"
      data-item-id="{{ $event->id }}"
      data-item-date="{{ $localStart->format('Y-m-d') }}"
@@ -20,7 +20,7 @@
      data-item-end="{{ $endMin }}"
      data-item-title="{{ $event->title }}"
      class="absolute z-[5] cursor-pointer overflow-hidden rounded-lg bg-neutral-200/80 shadow-sm transition-all hover:shadow-md hover:bg-neutral-300/80 dark:bg-neutral-700/80 dark:hover:bg-neutral-600/80
-            {{ $size === 'sm' ? 'left-2 right-2' : 'left-2.5 right-2 max-w-xl' }}"
+            {{ $size === 'sm' ? 'left-1.5 right-3' : 'left-2 right-4 max-w-xl' }}"
      style="top: {{ $topOffset }}px; height: {{ $heightPx }}px;">
     <div class="resize-handle resize-top absolute inset-x-0 top-0 h-2 cursor-n-resize rounded-t-lg"></div>
 

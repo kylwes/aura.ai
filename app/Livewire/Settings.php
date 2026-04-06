@@ -8,6 +8,7 @@ use App\Jobs\ScheduleTasksJob;
 use App\Jobs\SyncGoogleCalendarJob;
 use App\Models\WorkSchedule;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -26,9 +27,14 @@ class Settings extends Component
 
     public ?string $focusTimeEnd = null;
 
+    public bool $focusTimeProtected = false;
+
     public int $maxTaskDuration;
 
     public int $bufferTime;
+
+    #[On('integration-updated')]
+    public function refreshIntegrations(): void {}
 
     public function mount(): void
     {
@@ -37,6 +43,7 @@ class Settings extends Component
         $this->focusTimeEnabled = $user->focus_time_enabled ?? false;
         $this->focusTimeStart = $user->focus_time_start;
         $this->focusTimeEnd = $user->focus_time_end;
+        $this->focusTimeProtected = $user->focus_time_protected ?? false;
         $this->maxTaskDuration = $user->max_task_duration ?? 120;
         $this->bufferTime = $user->buffer_time ?? 15;
 
@@ -141,7 +148,7 @@ class Settings extends Component
             'ai_reasoning' => null,
         ]));
 
-        ScheduleTasksJob::dispatch($user);
+        ScheduleTasksJob::debounce($user);
     }
 
     public function savePreferences(): void
@@ -150,9 +157,12 @@ class Settings extends Component
             'focus_time_enabled' => $this->focusTimeEnabled,
             'focus_time_start' => $this->focusTimeStart,
             'focus_time_end' => $this->focusTimeEnd,
+            'focus_time_protected' => $this->focusTimeProtected,
             'max_task_duration' => $this->maxTaskDuration,
             'buffer_time' => $this->bufferTime,
         ]);
+
+        ScheduleTasksJob::debounce(auth()->user());
 
         session()->flash('message', 'Preferences saved.');
     }
@@ -168,20 +178,6 @@ class Settings extends Component
         if ($integration) {
             SyncGoogleCalendarJob::dispatch($user);
             session()->flash('message', 'Sync started. Events will appear shortly.');
-        }
-    }
-
-    public function setGooglePushTarget(string $target): void
-    {
-        $user = auth()->user();
-        $integration = $user->integrations()
-            ->where('type', IntegrationType::GoogleCalendar)
-            ->first();
-
-        if ($integration) {
-            $config = $integration->configuration;
-            $config['push_target'] = $target;
-            $integration->update(['configuration' => $config]);
         }
     }
 

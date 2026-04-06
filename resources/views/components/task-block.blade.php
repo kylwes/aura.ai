@@ -5,39 +5,41 @@
     $blockMinutes = $block ? $block->scheduled_start->diffInMinutes($block->scheduled_end) : ($task->estimated_duration ?? 60);
     $durationMinutes = $blockMinutes;
     $isCompact = $durationMinutes <= 45;
-    $baseClasses = 'group relative cursor-pointer rounded-lg transition-all hover:shadow-md hover:brightness-110 h-full';
-    $paddingClasses = $isCompact ? 'px-2.5 flex items-center gap-1.5' : 'px-3 py-1.5';
     $hasProject = $task->project_id && $task->relationLoaded('project') && $task->project;
     $projectColor = $hasProject ? $task->project->color : null;
+    $isDraft = $isAi && ! $task->is_pinned;
+    $stripes = "repeating-linear-gradient(-45deg, transparent, transparent 4px, var(--stripe-color) 4px, var(--stripe-color) 5px)";
 
+    $baseClasses = 'group relative cursor-pointer rounded-lg transition-all h-full';
+    $paddingClasses = $isCompact ? 'px-2.5 flex items-center gap-1.5' : 'px-3 py-1.5';
+
+    // Locked = solid, filled, shadow, full opacity
+    // Draft = dashed, striped, no shadow, faded
     if ($hasProject && $task->is_pinned) {
-        // Pinned project task: solid border in project color
-        $variantClasses = 'border border-solid shadow-sm ring-1';
-        $projectBorderStyle = "border-color: {$projectColor}80; background-color: {$projectColor}10; --tw-ring-color: {$projectColor}20;";
-    } elseif ($hasProject && $isAi) {
-        // AI-scheduled project task: dashed border in project color
+        $variantClasses = 'border border-solid shadow-sm ring-1 hover:shadow-md';
+        $inlineStyle = "border-color: {$projectColor}80; background-color: {$projectColor}18; --tw-ring-color: {$projectColor}20;";
+    } elseif ($hasProject && $isDraft) {
         $variantClasses = 'border border-dashed';
-        $projectBorderStyle = "border-color: {$projectColor}60; background-color: {$projectColor}10;";
+        $inlineStyle = "border-color: {$projectColor}40; background-color: {$projectColor}10; --stripe-color: {$projectColor}15; background-image: {$stripes};";
     } elseif ($hasProject) {
-        // Manually scheduled project task: solid left border
-        $variantClasses = 'border-l-3 bg-neutral-100 shadow-sm dark:bg-neutral-800';
-        $projectBorderStyle = "border-left-color: {$projectColor};";
+        $variantClasses = 'border border-solid shadow-sm hover:shadow-md';
+        $inlineStyle = "border-color: {$projectColor}50; background-color: {$projectColor}15;";
     } elseif ($task->is_pinned) {
-        $variantClasses = 'border border-solid border-accent-400/80 bg-accent-50/90 shadow-sm ring-1 ring-accent-400/20 dark:border-accent-500/60 dark:bg-accent-950/50 dark:ring-accent-500/10';
-        $projectBorderStyle = '';
-    } elseif ($isAi) {
-        $variantClasses = 'border border-dashed border-accent-400/60 bg-accent-50/80 dark:border-accent-600/40 dark:bg-accent-950/30';
-        $projectBorderStyle = '';
+        $variantClasses = 'border border-solid border-neutral-300 bg-neutral-50 shadow-sm ring-1 ring-neutral-300/20 dark:border-neutral-600 dark:bg-neutral-900 dark:ring-neutral-600/10 hover:shadow-md';
+        $inlineStyle = '';
+    } elseif ($isDraft) {
+        $variantClasses = 'border border-dashed border-neutral-300/30 bg-neutral-50 dark:border-neutral-600/25 dark:bg-neutral-900';
+        $inlineStyle = "--stripe-color: rgba(140,140,140,0.08); background-image: {$stripes};";
     } else {
-        $variantClasses = 'border-l-3 ' . $task->priority->borderColor() . ' bg-neutral-100 shadow-sm dark:bg-neutral-800';
-        $projectBorderStyle = '';
+        $variantClasses = 'border-l-3 ' . $task->priority->borderColor() . ' bg-neutral-100 shadow-sm dark:bg-neutral-800 hover:shadow-md';
+        $inlineStyle = '';
     }
 @endphp
 
 <div {{ $attributes->merge(['class' => "$baseClasses $paddingClasses $variantClasses"]) }}
-     @if ($projectBorderStyle) style="{{ $projectBorderStyle }}" @endif>
+     @if ($inlineStyle) style="{{ $inlineStyle }}" @endif>
 
-    <div class="flex items-center gap-1.5 min-w-0">
+    <div class="flex items-center gap-1.5 min-w-0 {{ $isDraft ? 'opacity-75' : '' }}">
         @if ($task->integration)
             <x-source-icon :type="$task->integration->type" size="sm" class="shrink-0" />
         @endif
@@ -48,8 +50,8 @@
 
         @if ($task->is_pinned)
             <svg class="size-3 shrink-0 text-neutral-400 dark:text-neutral-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
-        @elseif ($isAi)
-            <x-icons.sparkle class="size-3 shrink-0 text-accent-400" />
+        @elseif ($isDraft)
+            <x-icons.sparkle class="size-3 shrink-0 text-neutral-400 dark:text-neutral-500" />
         @endif
     </div>
 
@@ -61,9 +63,9 @@
     @endphp
 
     @if (!$isCompact)
-        <span class="time-label text-xs text-neutral-500 dark:text-neutral-400">{{ $durationLabel }}</span>
+        <span class="time-label text-xs {{ $isDraft ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-500 dark:text-neutral-400' }}">{{ $durationLabel }}</span>
     @else
-        <span class="time-label shrink-0 text-[10px] text-neutral-500 dark:text-neutral-400">{{ $durationLabel }}</span>
+        <span class="time-label shrink-0 text-[10px] {{ $isDraft ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-500 dark:text-neutral-400' }}">{{ $durationLabel }}</span>
     @endif
 
 </div>

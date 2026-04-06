@@ -7,6 +7,7 @@ use App\Livewire\Auth\Register;
 use App\Livewire\Auth\ResetPassword;
 use App\Livewire\Auth\VerifyEmail;
 use App\Livewire\Onboarding;
+use App\Livewire\Pages\DashboardPage;
 use App\Livewire\Pages\PlannerPage;
 use App\Livewire\Pages\ProjectsPage;
 use App\Livewire\Pages\TaskPage;
@@ -26,6 +27,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/verify-email', VerifyEmail::class)->name('verification.notice');
     Route::get('/onboarding', Onboarding::class)->name('onboarding');
     Route::get('/', PlannerPage::class)->name('planner');
+    Route::get('/dashboard', DashboardPage::class)->name('dashboard');
     Route::get('/tasks', TaskPage::class)->name('tasks');
     Route::get('/projects', ProjectsPage::class)->name('projects');
     Route::get('/settings', Settings::class)->name('settings');

@@ -31,9 +31,9 @@ class PlannerPage extends Component
 
     public int $weekDaysCount = 7;
 
-    public int $pastBuffer = 4;
+    public int $pastBuffer = 2;
 
-    public int $futureBuffer = 4;
+    public int $futureBuffer = 3;
 
     /** @return array<string, string> */
     public function getListeners(): array
@@ -41,19 +41,26 @@ class PlannerPage extends Component
         return [
             'echo-private:App.Models.User.'.auth()->id().',OverlapsResolved' => '$refresh',
             'echo-private:App.Models.User.'.auth()->id().',ScheduleCompleted' => 'onScheduleCompleted',
+            'echo-private:App.Models.User.'.auth()->id().',RescheduleProposed' => 'onRescheduleProposed',
         ];
     }
 
     public function onScheduleCompleted(): void
     {
-        $this->dispatch('toast', type: 'success', title: 'Schedule updated', body: 'AI has rescheduled your tasks.');
+        $this->dispatch('toast', type: 'success', title: 'Schedule updated', body: 'Your tasks have been rescheduled.');
     }
 
-    public function mount(UserPreferences $preferences): void
+    /** @param array<string, mixed> $event */
+    public function onRescheduleProposed(array $event): void
+    {
+        $this->dispatch('openModal', component: 'reschedule-preview-modal', arguments: ['proposalId' => $event['proposal_id']]);
+    }
+
+    public function mount(UserPreferences $preferences, ?string $date = null): void
     {
         $this->currentView = $preferences->calendar_view->value;
         $this->weekDaysCount = $preferences->week_days_count;
-        $this->currentDate = now();
+        $this->currentDate = $date ? Carbon::parse($date) : now();
         $this->triggerSyncIfNeeded();
     }
 
@@ -93,11 +100,25 @@ class PlannerPage extends Component
     #[On('task-scheduled')]
     public function onTaskScheduled(): void {}
 
+    #[On('project-layers-changed')]
+    public function onProjectLayersChanged(): void {}
+
+    #[On('day-override-saved')]
+    public function onDayOverrideSaved(): void {}
+
+    #[On('project-saved')]
+    public function onProjectSaved(): void
+    {
+        $userId = auth()->id();
+        cache()->forget("user.{$userId}.projects_with_schedules");
+        cache()->forget("user.{$userId}.work_schedules");
+    }
+
     #[On('auto-schedule')]
     public function autoSchedule(): void
     {
-        ScheduleTasksJob::dispatch(auth()->user());
-        $this->dispatch('toast', type: 'info', title: 'Scheduling...', body: 'AI is rescheduling your tasks.');
+        ScheduleTasksJob::debounce(auth()->user());
+        $this->dispatch('toast', type: 'info', title: 'Scheduling...', body: 'Rescheduling your tasks.');
     }
 
     public function scheduleTask(int $taskId, string $date, int $startMinutes, int $duration): void
@@ -121,12 +142,23 @@ class PlannerPage extends Component
 
         $this->dispatch('task-scheduled');
         $this->dispatch('toast', type: 'success', title: 'Task scheduled', body: $task->title);
+        ScheduleTasksJob::debounce(auth()->user());
     }
 
     public function togglePin(int $taskId): void
     {
         $task = auth()->user()->tasks()->where('status', TaskStatus::Scheduled)->findOrFail($taskId);
         $task->update(['is_pinned' => ! $task->is_pinned]);
+    }
+
+    public function completeTask(int $taskId): void
+    {
+        $task = auth()->user()->tasks()->findOrFail($taskId);
+        $task->update(['status' => TaskStatus::Completed]);
+        $task->blocks()->delete();
+        $this->dispatch('task-scheduled');
+        $this->dispatch('toast', type: 'success', title: 'Task completed', body: $task->title);
+        ScheduleTasksJob::debounce(auth()->user());
     }
 
     public function moveEvent(int $eventId, string $date, int $startMinutes): void
@@ -268,8 +300,14 @@ class PlannerPage extends Component
             ->orderBy('starts_at')
             ->get();
 
+        $hiddenProjectIds = app(UserPreferences::class)->hidden_project_ids;
+
         $taskBlocks = TaskBlock::query()
-            ->whereHas('task', fn ($q) => $q->where('user_id', $user->id)->where('status', TaskStatus::Scheduled))
+            ->whereHas('task', fn ($q) => $q
+                ->where('user_id', $user->id)
+                ->where('status', TaskStatus::Scheduled)
+                ->where(fn ($q2) => $q2->whereNull('project_id')->orWhereNotIn('project_id', $hiddenProjectIds))
+            )
             ->where('scheduled_start', '>=', $viewData['rangeStart'])
             ->where('scheduled_start', '<=', $viewData['rangeEnd'])
             ->with(['task.integration', 'task.project'])
@@ -278,7 +316,7 @@ class PlannerPage extends Component
 
         // One-off project blocks
         $projectBlocks = ProjectBlock::query()
-            ->whereHas('project', fn ($q) => $q->where('user_id', $user->id))
+            ->whereHas('project', fn ($q) => $q->where('user_id', $user->id)->whereNotIn('id', $hiddenProjectIds))
             ->where('scheduled_start', '>=', $viewData['rangeStart'])
             ->where('scheduled_start', '<=', $viewData['rangeEnd'])
             ->with('project')
@@ -287,10 +325,15 @@ class PlannerPage extends Component
 
         // Generate virtual project blocks from recurring schedules
         $tz = $user->timezone ?? 'UTC';
-        $projects = $user->projects()->with('schedules')->get();
+        $projects = $user->projects()->whereNotIn('id', $hiddenProjectIds)->with('schedules')->get();
         $workSchedules = $user->workSchedules()->get()->keyBy('day');
         $rangeStart = $viewData['rangeStart'];
         $rangeEnd = $viewData['rangeEnd'];
+
+        // Build a HashSet of existing block keys for O(1) duplicate detection
+        $existingBlockKeys = $projectBlocks->mapWithKeys(
+            fn ($b) => [$b->project_id.'-'.$b->scheduled_start->timestamp.'-'.$b->scheduled_end->timestamp => true]
+        )->all();
 
         foreach ($projects as $project) {
             $schedulesByDay = $project->schedules->groupBy('day');
@@ -340,11 +383,8 @@ class PlannerPage extends Component
                         }
 
                         foreach ($segments as $seg) {
-                            $alreadyExists = $projectBlocks->contains(fn ($b) => $b->project_id === $project->id
-                                && $b->scheduled_start->eq($seg['start'])
-                                && $b->scheduled_end->eq($seg['end']));
-
-                            if (! $alreadyExists) {
+                            $existingKey = $project->id.'-'.$seg['start']->timestamp.'-'.$seg['end']->timestamp;
+                            if (! isset($existingBlockKeys[$existingKey])) {
                                 $virtualBlock = new ProjectBlock([
                                     'project_id' => $project->id,
                                     'scheduled_start' => $seg['start'],
@@ -353,6 +393,7 @@ class PlannerPage extends Component
                                 $virtualBlock->id = 0;
                                 $virtualBlock->setRelation('project', $project);
                                 $projectBlocks->push($virtualBlock);
+                                $existingBlockKeys[$existingKey] = true;
                             }
                         }
                     }
@@ -361,7 +402,83 @@ class PlannerPage extends Component
             }
         }
 
+        // Generate project indicators from task blocks for projects without schedules on that day
+        $projectsById = $projects->keyBy('id');
+        $taskBlocksByProject = $taskBlocks->filter(fn ($b) => $b->task->project_id)->groupBy(fn ($b) => $b->task->project_id);
+
+        // Build a date-based set for O(1) "does this project already have a block on this date?" checks
+        $projectBlockDateKeys = [];
+        foreach ($projectBlocks as $pb) {
+            $projectBlockDateKeys[$pb->project_id.'-'.$pb->scheduled_start->copy()->setTimezone($tz)->format('Y-m-d')] = true;
+        }
+
+        foreach ($taskBlocksByProject as $projectId => $blocks) {
+            $project = $projectsById->get($projectId);
+            if (! $project) {
+                continue;
+            }
+
+            // Group task blocks by date
+            $blocksByDate = $blocks->groupBy(fn ($b) => $b->scheduled_start->copy()->setTimezone($tz)->format('Y-m-d'));
+
+            foreach ($blocksByDate as $dateStr => $dayBlocks) {
+                // Skip if we already have a project block for this project on this date
+                if (isset($projectBlockDateKeys[$projectId.'-'.$dateStr])) {
+                    continue;
+                }
+
+                // Create a project block spanning all task blocks on this day
+                $earliest = $dayBlocks->min(fn ($b) => $b->scheduled_start);
+                $latest = $dayBlocks->max(fn ($b) => $b->scheduled_end);
+
+                $virtualBlock = new ProjectBlock([
+                    'project_id' => $projectId,
+                    'scheduled_start' => $earliest,
+                    'scheduled_end' => $latest,
+                ]);
+                $virtualBlock->id = 0;
+                $virtualBlock->setRelation('project', $project);
+                $projectBlocks->push($virtualBlock);
+                $projectBlockDateKeys[$projectId.'-'.$dateStr] = true;
+            }
+        }
+
         $projectBlocks = $projectBlocks->sortBy('scheduled_start')->values();
+
+        // Pre-index all collections by 'Y-m-d-H' cell key for O(1) lookups in Blade
+        $eventsByCell = [];
+        foreach ($events as $e) {
+            $local = $e->starts_at->copy()->setTimezone($tz);
+            $key = $local->format('Y-m-d').'-'.$local->hour;
+            $eventsByCell[$key][] = $e;
+        }
+
+        $taskBlocksByCell = [];
+        foreach ($taskBlocks as $b) {
+            $local = $b->scheduled_start->copy()->setTimezone($tz);
+            $key = $local->format('Y-m-d').'-'.$local->hour;
+            $taskBlocksByCell[$key][] = $b;
+        }
+
+        $projectBlocksByCell = [];
+        foreach ($projectBlocks as $pb) {
+            $local = $pb->scheduled_start->copy()->setTimezone($tz);
+            $key = $local->format('Y-m-d').'-'.$local->hour;
+            $projectBlocksByCell[$key][] = $pb;
+        }
+
+        // Pre-index by date only for the month view
+        $eventsByDate = [];
+        foreach ($events as $e) {
+            $key = $e->starts_at->copy()->setTimezone($tz)->format('Y-m-d');
+            $eventsByDate[$key][] = $e;
+        }
+
+        $taskBlocksByDate = [];
+        foreach ($taskBlocks as $b) {
+            $key = $b->scheduled_start->copy()->setTimezone($tz)->format('Y-m-d');
+            $taskBlocksByDate[$key][] = $b;
+        }
 
         // Map allDays to days for week view
         if ($this->currentView === 'week') {
@@ -369,15 +486,29 @@ class PlannerPage extends Component
             unset($viewData['allDays']);
         }
 
+        $overrideDates = $user->dayOverrides()
+            ->where('date', '>=', $viewData['rangeStart'])
+            ->where('date', '<=', $viewData['rangeEnd'])
+            ->pluck('date')
+            ->map(fn ($d) => $d->format('Y-m-d'))
+            ->flip()
+            ->all();
+
         unset($viewData['rangeStart'], $viewData['rangeEnd']);
 
         return view('livewire.pages.planner-page', [
             'events' => $events,
             'taskBlocks' => $taskBlocks,
             'projectBlocks' => $projectBlocks,
+            'eventsByCell' => $eventsByCell,
+            'taskBlocksByCell' => $taskBlocksByCell,
+            'projectBlocksByCell' => $projectBlocksByCell,
+            'eventsByDate' => $eventsByDate,
+            'taskBlocksByDate' => $taskBlocksByDate,
             'currentView' => $this->currentView,
             'weekDaysCount' => $this->weekDaysCount,
             'selectedDate' => $this->selectedDate,
+            'overrideDates' => $overrideDates,
             ...$viewData,
         ]);
     }

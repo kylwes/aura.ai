@@ -1,4 +1,4 @@
-@props(['days', 'hours', 'events', 'taskBlocks', 'projectBlocks', 'anchorDate', 'weekDaysCount' => 7, 'selectedDate' => null])
+@props(['days', 'hours', 'events', 'taskBlocks', 'projectBlocks', 'eventsByCell' => [], 'taskBlocksByCell' => [], 'projectBlocksByCell' => [], 'anchorDate', 'weekDaysCount' => 7, 'selectedDate' => null, 'overrideDates' => []])
 
 <div wire:key="cal-week-{{ $anchorDate }}"
      class="relative flex h-full flex-col"
@@ -6,9 +6,9 @@
      x-init="init()">
 
     {{-- Single scroll container for both axes --}}
-    <div class="flex-1 snap-x snap-mandatory overflow-auto scroll-pl-[60px]"
+    <div class="flex-1 overflow-auto scroll-pl-[60px]"
          x-ref="scroller"
-         @scroll.throttle.150ms="onScroll()"
+         @scroll.debounce.300ms="onScroll()"
          x-init="$nextTick(() => { $el.style.setProperty('--col-width', (($el.clientWidth - 60) / {{ $weekDaysCount }}) + 'px') })"
          @resize.window="$el.style.setProperty('--col-width', (($el.clientWidth - 60) / {{ $weekDaysCount }}) + 'px')">
 
@@ -29,12 +29,21 @@
                          data-date="{{ $day->format('Y-m-d') }}"
                          @if ($day->format('Y-m-d') === $anchorDate) data-anchor @endif
                          style="width: var(--col-width, {{ 100 / $weekDaysCount }}vw)"
-                         class="flex shrink-0 items-center justify-center gap-1.5 border-r border-neutral-200 py-2 last:border-r-0 dark:border-neutral-800
+                         class="group/header relative flex shrink-0 items-center justify-center gap-1.5 border-r border-neutral-200 py-2 last:border-r-0 dark:border-neutral-800
                                 snap-start
-                                {{ $isSelected ? 'bg-accent-100/80 dark:bg-accent-900/30' : ($day->isToday() ? 'bg-accent-50/50 dark:bg-accent-950/20' : ($day->isWeekend() ? 'bg-neutral-100/60 dark:bg-neutral-800/40' : '')) }}
+                                {{ $isSelected ? 'bg-accent-100/80 dark:bg-accent-900/30' : ($day->isToday() ? 'bg-accent-50/50 dark:bg-accent-950/20' : ($day->isWeekend() ? 'bg-neutral-200/60 dark:bg-neutral-950/60' : '')) }}
                                 {{ $isGroupStart ? 'border-l border-neutral-300 dark:border-neutral-700' : '' }}">
-                        <span class="text-xs font-medium {{ $isSelected ? 'text-accent-600 dark:text-accent-400' : 'text-neutral-400 dark:text-neutral-500' }}">{{ $day->format('D') }}</span>
-                        <span class="text-sm font-semibold {{ $isSelected ? 'text-accent-700 dark:text-accent-300' : ($day->isToday() ? 'text-accent-600 dark:text-accent-400' : 'text-neutral-900 dark:text-neutral-100') }}">{{ $day->format('j') }}</span>
+                        <span class="text-xs font-medium {{ $isSelected ? 'text-accent-600 dark:text-accent-400' : ($day->isWeekend() ? 'text-neutral-300 dark:text-neutral-600' : 'text-neutral-400 dark:text-neutral-500') }}">{{ $day->format('D') }}</span>
+                        <span class="text-sm font-semibold {{ $isSelected ? 'text-accent-700 dark:text-accent-300' : ($day->isToday() ? 'text-accent-600 dark:text-accent-400' : ($day->isWeekend() ? 'text-neutral-400 dark:text-neutral-600' : 'text-neutral-900 dark:text-neutral-100')) }}">{{ $day->format('j') }}</span>
+                        @if (isset($overrideDates[$day->format('Y-m-d')]))
+                            <span class="size-1 rounded-full bg-amber-400 dark:bg-amber-500" title="Custom schedule"></span>
+                        @endif
+                        <button x-data
+                                @click.stop="Livewire.dispatch('openModal', { component: 'day-settings-modal', arguments: { date: '{{ $day->format('Y-m-d') }}' } })"
+                                class="absolute right-0.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-neutral-300 opacity-0 transition-all hover:bg-neutral-100 hover:text-neutral-500 group-hover/header:opacity-100 dark:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-400"
+                                title="Day settings">
+                            <svg class="size-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                        </button>
                     </div>
                 @endforeach
             </div>
@@ -80,19 +89,20 @@
                                      data-hour="{{ $hour }}"
                                      style="width: var(--col-width, {{ 100 / $weekDaysCount }}vw)"
                                      class="relative h-[60px] shrink-0 border-b border-r border-neutral-100 last:border-r-0 dark:border-neutral-800/50
-                                            {{ $isSelected ? 'bg-accent-50/50 dark:bg-accent-950/15' : ($day->isToday() ? 'bg-accent-50/30 dark:bg-accent-950/10' : ($day->isWeekend() ? 'bg-neutral-100/40 dark:bg-neutral-800/30' : '')) }}
+                                            {{ $isSelected ? 'bg-accent-50/50 dark:bg-accent-950/15' : ($day->isToday() ? 'bg-accent-50/20 dark:bg-accent-950/5' : ($day->isWeekend() ? 'bg-neutral-200/40 dark:bg-neutral-950/40' : '')) }}
                                             {{ $isGroupStart ? 'border-l border-neutral-200 dark:border-neutral-700' : '' }}">
 
-                                    @php $userTz = auth()->user()->timezone ?? 'UTC'; @endphp
-                                    @foreach ($projectBlocks->filter(fn ($b) => $b->scheduled_start->copy()->setTimezone($userTz)->isSameDay($day) && $b->scheduled_start->copy()->setTimezone($userTz)->hour === $hour) as $pBlock)
+                                    @php $cellKey = $day->format('Y-m-d') . '-' . $hour; @endphp
+
+                                    @foreach ($projectBlocksByCell[$cellKey] ?? [] as $pBlock)
                                         <x-calendar.project-block :block="$pBlock" />
                                     @endforeach
 
-                                    @foreach ($events->filter(fn ($e) => $e->starts_at->copy()->setTimezone($userTz)->isSameDay($day) && $e->starts_at->copy()->setTimezone($userTz)->hour === $hour) as $event)
+                                    @foreach ($eventsByCell[$cellKey] ?? [] as $event)
                                         <x-calendar.event-block :$event />
                                     @endforeach
 
-                                    @foreach ($taskBlocks->filter(fn ($b) => $b->scheduled_start->copy()->setTimezone($userTz)->isSameDay($day) && $b->scheduled_start->copy()->setTimezone($userTz)->hour === $hour) as $block)
+                                    @foreach ($taskBlocksByCell[$cellKey] ?? [] as $block)
                                         <x-calendar.task-block-wrapper :block="$block" :task="$block->task" />
                                     @endforeach
                                 </div>
@@ -100,10 +110,11 @@
                         </div>
                     @endforeach
 
-                    @if (now()->between($days->first()->startOfDay(), $days->last()->endOfDay()))
-                        <x-calendar.now-indicator />
-                    @endif
                 </div>
+
+                @if (now()->between($days->first()->startOfDay(), $days->last()->endOfDay()))
+                    <x-calendar.now-indicator />
+                @endif
             </div>
         </div>
     </div>
