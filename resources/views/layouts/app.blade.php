@@ -20,6 +20,7 @@
         {{ $slot }}
     </main>
 
+    <livewire:inbox-panel />
     <livewire:wire-elements-modal />
     <x-toast />
 </body>

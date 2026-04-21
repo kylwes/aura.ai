@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'user_id', 'integration_id', 'channel_name', 'preview_text',
     'source_url', 'ai_suggested_priority', 'ai_confidence', 'ai_estimated_duration',
-    'ai_suggested_project_id', 'status', 'snoozed_until',
+    'ai_suggested_project_id', 'ai_action', 'ai_reasoning', 'status', 'snoozed_until',
 ])]
 class InboxItem extends Model
 {

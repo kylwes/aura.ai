@@ -18,8 +18,7 @@
         </p>
 
         {{-- Working day / Day off toggle --}}
-        <div>
-            <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Status</label>
+        <x-input.label label="Status">
             <div class="mt-2 flex items-center gap-2">
                 <button wire:click="$set('isDayOff', false)"
                         type="button"
@@ -40,34 +39,34 @@
                     Day off
                 </button>
             </div>
-        </div>
+        </x-input.label>
 
         @if (! $isDayOff)
             {{-- Work hours --}}
             <div class="flex items-start gap-6">
                 <div class="flex-1">
-                    <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Start</label>
-                    <input type="time" wire:model="start"
-                           class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm font-medium text-neutral-900 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-100">
+                    <x-input.label label="Start">
+                        <x-input.text type="time" wire:model="start" class="font-medium" />
+                    </x-input.label>
                 </div>
                 <div class="flex-1">
-                    <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">End</label>
-                    <input type="time" wire:model="end"
-                           class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm font-medium text-neutral-900 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-100">
+                    <x-input.label label="End">
+                        <x-input.text type="time" wire:model="end" class="font-medium" />
+                    </x-input.label>
                 </div>
             </div>
 
             {{-- Lunch break --}}
             <div class="flex items-start gap-6">
                 <div class="flex-1">
-                    <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Lunch start</label>
-                    <input type="time" wire:model="lunchStart"
-                           class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm font-medium text-neutral-900 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-100">
+                    <x-input.label label="Lunch start">
+                        <x-input.text type="time" wire:model="lunchStart" class="font-medium" />
+                    </x-input.label>
                 </div>
                 <div class="flex-1">
-                    <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Lunch end</label>
-                    <input type="time" wire:model="lunchEnd"
-                           class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm font-medium text-neutral-900 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-100">
+                    <x-input.label label="Lunch end">
+                        <x-input.text type="time" wire:model="lunchEnd" class="font-medium" />
+                    </x-input.label>
                 </div>
             </div>
         @endif

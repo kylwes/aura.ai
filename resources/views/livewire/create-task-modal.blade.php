@@ -13,21 +13,15 @@
     {{-- Body --}}
     <div class="space-y-5 px-8 py-6">
         {{-- Title --}}
-        <div>
-            <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Title</label>
-            <input type="text"
-                   wire:model="title"
-                   autofocus
-                   placeholder="What needs to be done?"
-                   class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm font-medium text-neutral-900 placeholder-neutral-400 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-500">
-            @error('title')
-                <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
-            @enderror
-        </div>
+        <x-input.label label="Title">
+            <x-input.text wire:model="title" autofocus placeholder="What needs to be done?" class="font-medium" />
+        </x-input.label>
+        @error('title')
+            <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
+        @enderror
 
         {{-- Priority --}}
-        <div>
-            <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Priority</label>
+        <x-input.label label="Priority">
             <div class="mt-2 flex items-center gap-2">
                 @foreach (\App\Enums\TaskPriority::cases() as $p)
                     <button wire:click="$set('priority', '{{ $p->value }}')"
@@ -41,44 +35,40 @@
                     </button>
                 @endforeach
             </div>
-        </div>
+        </x-input.label>
 
         {{-- Project --}}
         @php $projects = auth()->user()->projects()->orderBy('title')->get(); @endphp
         @if ($projects->isNotEmpty())
-            <div>
-                <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Project</label>
-                <select wire:model="projectId"
-                        class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm font-medium text-neutral-700 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-300">
+            <x-input.label label="Project">
+                <x-input.select wire:model="projectId" class="font-medium">
                     <option value="">No project</option>
                     @foreach ($projects as $project)
                         <option value="{{ $project->id }}">{{ $project->title }}</option>
                     @endforeach
-                </select>
-            </div>
+                </x-input.select>
+            </x-input.label>
         @endif
 
         <div class="flex items-start gap-6">
             {{-- Estimated duration --}}
             <div class="flex-1">
-                <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Estimated time</label>
-                <div class="mt-2 flex items-center gap-1.5"
-                     x-data="{ h: {{ $estimatedDuration ? intdiv($estimatedDuration, 60) : 0 }}, m: {{ $estimatedDuration ? $estimatedDuration % 60 : 0 }}, save() { $wire.estimatedDuration = this.h * 60 + this.m } }">
-                    <input type="number" x-model.number="h" @change="save()" min="0" max="23" placeholder="1"
-                           class="w-14 rounded-lg border-0 bg-neutral-100 px-2 py-1.5 text-center text-sm text-neutral-700 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-300">
-                    <span class="text-xs text-neutral-400 dark:text-neutral-500">h</span>
-                    <input type="number" x-model.number="m" @change="save()" min="0" max="59" step="15" placeholder="0"
-                           class="w-14 rounded-lg border-0 bg-neutral-100 px-2 py-1.5 text-center text-sm text-neutral-700 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-300">
-                    <span class="text-xs text-neutral-400 dark:text-neutral-500">m</span>
-                </div>
+                <x-input.label label="Estimated time">
+                    <div class="mt-2 flex items-center gap-1.5"
+                         x-data="{ h: {{ $estimatedDuration ? intdiv($estimatedDuration, 60) : 0 }}, m: {{ $estimatedDuration ? $estimatedDuration % 60 : 0 }}, save() { $wire.estimatedDuration = this.h * 60 + this.m } }">
+                        <x-input.number x-model.number="h" @change="save()" min="0" max="23" placeholder="1" />
+                        <span class="text-xs text-neutral-400 dark:text-neutral-500">h</span>
+                        <x-input.number x-model.number="m" @change="save()" min="0" max="59" step="15" placeholder="0" />
+                        <span class="text-xs text-neutral-400 dark:text-neutral-500">m</span>
+                    </div>
+                </x-input.label>
             </div>
 
             {{-- Deadline --}}
             <div class="flex-1">
-                <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Deadline</label>
-                <input type="date"
-                       wire:model="deadline"
-                       class="mt-2 w-full rounded-lg border border-neutral-200 bg-transparent px-3 py-1.5 text-sm text-neutral-700 focus:border-accent-500 focus:ring-1 focus:ring-accent-500 dark:border-neutral-700 dark:text-neutral-300">
+                <x-input.label label="Deadline">
+                    <x-input.date wire:model="deadline" />
+                </x-input.label>
             </div>
         </div>
 
@@ -129,13 +119,9 @@
         </div>
 
         {{-- Description --}}
-        <div>
-            <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Description</label>
-            <textarea wire:model="description"
-                      rows="3"
-                      placeholder="Add details..."
-                      class="mt-1 w-full resize-none rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm text-neutral-700 placeholder-neutral-400 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-300 dark:placeholder-neutral-500"></textarea>
-        </div>
+        <x-input.label label="Description">
+            <x-input.textarea wire:model="description" placeholder="Add details..." />
+        </x-input.label>
     </div>
 
     {{-- Footer --}}

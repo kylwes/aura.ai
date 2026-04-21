@@ -8,4 +8,5 @@ enum InboxItemStatus: string
     case Accepted = 'accepted';
     case Snoozed = 'snoozed';
     case Dismissed = 'dismissed';
+    case Skipped = 'skipped';
 }

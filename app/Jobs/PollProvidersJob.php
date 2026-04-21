@@ -86,11 +86,13 @@ class PollProvidersJob implements ShouldQueue
 
             $itemData = $allItems[$index];
 
-            match ($result['action'] ?? 'skip') {
+            $action = $result['action'] ?? 'skip';
+
+            match ($action) {
                 'create_inbox' => $this->createInboxItem($itemData['integration'], $result, $itemData['sourceUrl'], $itemData['channel']),
-                'update_task' => $needsReschedule = $this->updateTask($result) || $needsReschedule,
-                'resume_task' => $needsReschedule = $this->resumeTask($result) || $needsReschedule,
-                default => null,
+                'update_task' => $needsReschedule = $this->updateTask($result, $itemData['integration'], $itemData['sourceUrl'], $itemData['channel']) || $needsReschedule,
+                'resume_task' => $needsReschedule = $this->resumeTask($result, $itemData['integration'], $itemData['sourceUrl'], $itemData['channel']) || $needsReschedule,
+                default => $this->createSkippedItem($itemData['integration'], $result, $itemData['sourceUrl'], $itemData['channel']),
             };
         }
 
@@ -110,11 +112,26 @@ class PollProvidersJob implements ShouldQueue
             'ai_confidence' => 2,
             'ai_estimated_duration' => $result['estimated_duration'] ?? null,
             'ai_suggested_project_id' => $result['project_id'] ?? null,
+            'ai_action' => 'create_inbox',
+            'ai_reasoning' => $result['reasoning'] ?? null,
             'status' => InboxItemStatus::Pending,
         ]);
     }
 
-    private function updateTask(array $result): bool
+    private function createSkippedItem($integration, array $result, ?string $sourceUrl, string $channel): void
+    {
+        $this->user->inboxItems()->create([
+            'integration_id' => $integration->id,
+            'channel_name' => $channel,
+            'preview_text' => $result['title'] ?? 'Skipped item',
+            'source_url' => $sourceUrl,
+            'ai_action' => 'skip',
+            'ai_reasoning' => $result['reasoning'] ?? null,
+            'status' => InboxItemStatus::Skipped,
+        ]);
+    }
+
+    private function updateTask(array $result, $integration, ?string $sourceUrl, string $channel): bool
     {
         if (! ($result['match_task_id'] ?? null)) {
             return false;
@@ -125,6 +142,16 @@ class PollProvidersJob implements ShouldQueue
         if (! $task) {
             return false;
         }
+
+        $this->user->inboxItems()->create([
+            'integration_id' => $integration->id,
+            'channel_name' => $channel,
+            'preview_text' => $result['title'] ?? $task->title,
+            'source_url' => $sourceUrl,
+            'ai_action' => 'update_task',
+            'ai_reasoning' => $result['reasoning'] ?? null,
+            'status' => InboxItemStatus::Accepted,
+        ]);
 
         $updates = [];
 
@@ -145,7 +172,7 @@ class PollProvidersJob implements ShouldQueue
         return false;
     }
 
-    private function resumeTask(array $result): bool
+    private function resumeTask(array $result, $integration, ?string $sourceUrl, string $channel): bool
     {
         if (! ($result['match_task_id'] ?? null)) {
             return false;
@@ -158,6 +185,16 @@ class PollProvidersJob implements ShouldQueue
         if (! $task) {
             return false;
         }
+
+        $this->user->inboxItems()->create([
+            'integration_id' => $integration->id,
+            'channel_name' => $channel,
+            'preview_text' => $result['title'] ?? $task->title,
+            'source_url' => $sourceUrl,
+            'ai_action' => 'resume_task',
+            'ai_reasoning' => $result['reasoning'] ?? null,
+            'status' => InboxItemStatus::Accepted,
+        ]);
 
         $task->update(['status' => TaskStatus::Pending]);
 

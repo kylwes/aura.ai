@@ -14,8 +14,7 @@
     <div class="space-y-5 px-8 py-6">
         @if (! $hasResults)
             {{-- Scenario selection --}}
-            <div>
-                <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Scenario</label>
+            <x-input.label label="Scenario">
                 <div class="mt-2 flex items-center gap-2">
                     <button wire:click="$set('scenarioType', 'day_off')" type="button"
                             class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors
@@ -28,30 +27,26 @@
                         Change work hours
                     </button>
                 </div>
-            </div>
+            </x-input.label>
 
             @if ($scenarioType === 'day_off')
-                <div>
-                    <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Date</label>
-                    <input type="date" wire:model="dayOffDate"
-                           class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm font-medium text-neutral-900 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-100">
-                </div>
+                <x-input.label label="Date">
+                    <x-input.date wire:model="dayOffDate" class="font-medium" />
+                </x-input.label>
             @elseif ($scenarioType === 'change_hours')
-                <div>
-                    <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Date</label>
-                    <input type="date" wire:model="changeDate"
-                           class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm font-medium text-neutral-900 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-100">
-                </div>
+                <x-input.label label="Date">
+                    <x-input.date wire:model="changeDate" class="font-medium" />
+                </x-input.label>
                 <div class="flex items-start gap-6">
                     <div class="flex-1">
-                        <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Start</label>
-                        <input type="time" wire:model="changeStart"
-                               class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm font-medium text-neutral-900 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-100">
+                        <x-input.label label="Start">
+                            <x-input.text type="time" wire:model="changeStart" class="font-medium" />
+                        </x-input.label>
                     </div>
                     <div class="flex-1">
-                        <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">End</label>
-                        <input type="time" wire:model="changeEnd"
-                               class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm font-medium text-neutral-900 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-100">
+                        <x-input.label label="End">
+                            <x-input.text type="time" wire:model="changeEnd" class="font-medium" />
+                        </x-input.label>
                     </div>
                 </div>
             @endif

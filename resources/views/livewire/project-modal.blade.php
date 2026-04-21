@@ -32,21 +32,15 @@
         @if ($tab === 'details')
             <div class="space-y-4">
                 {{-- Title --}}
-                <div>
-                    <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Title</label>
-                    <input type="text"
-                           wire:model="title"
-                           autofocus
-                           placeholder="Project name"
-                           class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm font-medium text-neutral-900 placeholder-neutral-400 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-500">
-                    @error('title')
-                        <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
-                    @enderror
-                </div>
+                <x-input.label label="Title">
+                    <x-input.text wire:model="title" autofocus placeholder="Project name" class="font-medium" />
+                </x-input.label>
+                @error('title')
+                    <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
+                @enderror
 
                 {{-- Color --}}
-                <div>
-                    <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Color</label>
+                <x-input.label label="Color">
                     <div class="mt-2 flex flex-wrap items-center gap-2">
                         @foreach (['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#6b7280'] as $preset)
                             <button type="button"
@@ -66,33 +60,25 @@
                                    class="absolute inset-0 cursor-pointer opacity-0">
                         </label>
                     </div>
-                    @error('color')
-                        <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
-                    @enderror
-                </div>
+                </x-input.label>
+                @error('color')
+                    <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
+                @enderror
 
                 {{-- Date range --}}
                 <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Start date <span class="normal-case tracking-normal text-neutral-300 dark:text-neutral-600">— optional</span></label>
-                        <input type="date" wire:model="startsAt"
-                               class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-300 dark:[color-scheme:dark]">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">End date <span class="normal-case tracking-normal text-neutral-300 dark:text-neutral-600">— optional</span></label>
-                        <input type="date" wire:model="endsAt"
-                               class="mt-1 w-full rounded-lg border-0 bg-neutral-100 px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-300 dark:[color-scheme:dark]">
-                    </div>
+                    <x-input.label label="Start date" optional>
+                        <x-input.date wire:model="startsAt" />
+                    </x-input.label>
+                    <x-input.label label="End date" optional>
+                        <x-input.date wire:model="endsAt" />
+                    </x-input.label>
                 </div>
 
                 {{-- Description --}}
-                <div>
-                    <label class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Description <span class="normal-case tracking-normal text-neutral-300 dark:text-neutral-600">— optional</span></label>
-                    <textarea wire:model="description"
-                              rows="3"
-                              placeholder="What is this project about?"
-                              class="mt-1 w-full resize-none rounded-lg border-0 bg-neutral-100 px-3 py-2.5 text-sm text-neutral-700 placeholder-neutral-400 focus:ring-2 focus:ring-accent-500 dark:bg-neutral-800 dark:text-neutral-300 dark:placeholder-neutral-500"></textarea>
-                </div>
+                <x-input.label label="Description" optional>
+                    <x-input.textarea wire:model="description" placeholder="What is this project about?" />
+                </x-input.label>
             </div>
         @else
             {{-- Schedule tab --}}

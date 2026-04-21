@@ -12,7 +12,7 @@ class TaskDetailModal extends ModalComponent
 {
     public ?Task $task = null;
 
-    public bool $showAiReasoning = true;
+    public bool $showAiReasoning = false;
 
     /** @var array<int> */
     public array $dependencyIds = [];

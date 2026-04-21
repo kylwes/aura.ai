@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Enums\InboxItemStatus;
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
+use App\Jobs\PollProvidersJob;
 use App\Jobs\ScheduleTasksJob;
 use App\Models\InboxItem;
 use Livewire\Attributes\On;
@@ -12,14 +13,37 @@ use Livewire\Component;
 
 class InboxPanel extends Component
 {
+    public string $activeTab = 'inbox';
+
     public ?string $sourceFilter = null;
 
     public ?string $priorityFilter = null;
+
+    public int $activityPerPage = 20;
+
+    public int $activityPage = 1;
 
     #[On('toggle-inbox')]
     public function toggle(): void
     {
         $this->dispatch('inbox-toggled');
+    }
+
+    public function switchTab(string $tab): void
+    {
+        $this->activeTab = $tab;
+        $this->activityPage = 1;
+    }
+
+    public function refresh(): void
+    {
+        PollProvidersJob::dispatch(auth()->user());
+        $this->dispatch('toast', type: 'info', title: 'Fetching new items', body: 'Checking your integrations for new items');
+    }
+
+    public function loadMore(): void
+    {
+        $this->activityPage++;
     }
 
     public function accept(int $itemId): void
@@ -71,9 +95,13 @@ class InboxPanel extends Component
 
     public function render()
     {
-        return view('livewire.inbox-panel', [
-            'items' => $this->getItems(),
-        ]);
+        $data = ['items' => $this->getItems()];
+
+        if ($this->activeTab === 'activity') {
+            $data['activityItems'] = $this->getActivityItems();
+        }
+
+        return view('livewire.inbox-panel', $data);
     }
 
     private function getItems()
@@ -90,5 +118,13 @@ class InboxPanel extends Component
         }
 
         return $query->get();
+    }
+
+    private function getActivityItems()
+    {
+        return auth()->user()->inboxItems()
+            ->with(['integration', 'suggestedProject'])
+            ->latest()
+            ->paginate($this->activityPerPage, page: $this->activityPage);
     }
 }
